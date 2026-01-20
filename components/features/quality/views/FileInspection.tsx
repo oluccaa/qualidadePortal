@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Layout } from '../../../layout/MainLayout.tsx';
 import { AuditWorkflow } from '../components/AuditWorkflow.tsx';
@@ -58,7 +57,7 @@ export const FileInspection: React.FC = () => {
                    {isQuality ? <Terminal size={18} /> : <ClipboardList size={18} />}
                 </div>
                 <h1 className="text-lg font-black uppercase tracking-tight">
-                  {isQuality ? "Terminal Técnico de Auditoria" : "Portal de Verificação de Ativos"}
+                  {isQuality ? "Terminal Técnico de Auditoria" : "Controle de Qualidade"}
                 </h1>
               </div>
               <p className={`text-[9px] font-bold uppercase tracking-widest opacity-60`}>
@@ -146,7 +145,7 @@ export const FileInspection: React.FC = () => {
               <header className="mb-8 flex items-end justify-between border-b border-slate-100 pb-5">
                 <div>
                   <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">
-                    {isQuality ? "Fluxo de Auditoria Técnica" : "Conformidade do Ativo"}
+                    {isQuality ? "Fluxo de Auditoria Técnica" : "Conformidade dos documentos"}
                   </h2>
                   <p className="text-[11px] font-medium text-slate-500 mt-1.5">
                     {isQuality ? "Controle de transmissão e arbitragem de laudos." : "Verificação e aceite de certificados de qualidade."}
