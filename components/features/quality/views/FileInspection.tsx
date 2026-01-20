@@ -63,6 +63,16 @@ export const FileInspection: React.FC = () => {
   const storagePath = inspectorFile.storagePath || '';
   const hashValue = storagePath.split('/').pop()?.substring(0, 12).toUpperCase() || 'N/A';
 
+  // Cálculo de progresso corrigido
+  const calculateProgress = () => {
+    const meta = inspectorFile.metadata;
+    if (meta?.status === QualityStatus.APPROVED || meta?.status === QualityStatus.REJECTED) {
+      return 100;
+    }
+    const step = meta?.currentStep || 1;
+    return Math.round(((step - 1) / 7) * 100);
+  };
+
   return (
     <Layout title={isQuality ? "Painel de Auditoria" : "Central de Conformidade"}>
       <div className={`flex-1 flex flex-col min-h-0 bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-sm animate-in fade-in duration-500`}>
@@ -177,7 +187,7 @@ export const FileInspection: React.FC = () => {
                 </div>
                 <div className="text-right">
                   <span className={`text-2xl font-black font-mono tracking-tighter ${isQuality ? 'text-blue-600' : 'text-emerald-600'}`}>
-                    {Math.round(((inspectorFile.metadata?.currentStep || 1) - 1) / 7 * 100)}%
+                    {calculateProgress()}%
                   </span>
                   <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Processo</p>
                 </div>

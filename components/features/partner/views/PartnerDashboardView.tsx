@@ -99,7 +99,9 @@ export const PartnerDashboardView: React.FC = () => {
             </div>
           </div>
           <div className="relative z-10">
-            <p className="text-2xl font-black tracking-tight">{stats?.lastAnalysis ? new Date(stats.lastAnalysis).toLocaleDateString() : '--/--/----'}</p>
+            <p className="text-2xl font-black tracking-tight">
+              {stats?.lastAnalysis ? new Date(stats.lastAnalysis).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '--/--/---- --:--'}
+            </p>
             <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-[3px]">Protocolo Vital SGQ</p>
           </div>
         </div>

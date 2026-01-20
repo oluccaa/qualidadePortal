@@ -1,4 +1,3 @@
-
 import { IPartnerService, DashboardStatsData } from './interfaces.ts';
 import { supabase } from '../supabaseClient.ts';
 import { QualityStatus, User, UserRole } from '../../types/index.ts';
@@ -45,17 +44,20 @@ export const SupabasePartnerService: IPartnerService = {
 
     const { data: stats, error } = await supabase
       .from('files')
-      .select('metadata->>status')
+      .select('metadata->>status, updated_at')
       .eq('owner_id', orgId)
       .neq('type', 'FOLDER');
 
     if (error) return { approvedCount: 0, rejectedCount: 0, unviewedCount: 0, lastAnalysis: new Date().toISOString() };
 
+    const timestamps = stats.map(f => new Date(f.updated_at).getTime());
+    const latest = timestamps.length > 0 ? Math.max(...timestamps) : Date.now();
+
     return {
       approvedCount: stats.filter(s => s.status === QualityStatus.APPROVED).length,
       rejectedCount: stats.filter(s => s.status === QualityStatus.REJECTED).length,
       unviewedCount: stats.filter(s => !s.viewedAt).length,
-      lastAnalysis: new Date().toISOString()
+      lastAnalysis: new Date(latest).toISOString()
     } as any;
   },
 
@@ -79,7 +81,7 @@ export const SupabasePartnerService: IPartnerService = {
 
     const { data, error } = await supabase
       .from('files')
-      .select('id, type, metadata')
+      .select('id, type, metadata, updated_at')
       .eq('owner_id', orgId);
 
     if (error || !data) {
@@ -89,6 +91,10 @@ export const SupabasePartnerService: IPartnerService = {
     const filesOnly = data.filter(f => f.type !== 'FOLDER');
     const approved = filesOnly.filter(f => f.metadata?.status === QualityStatus.APPROVED).length;
     const pending = filesOnly.filter(f => f.metadata?.status === QualityStatus.PENDING || !f.metadata?.status).length;
+    
+    // Calcula a última sincronização baseada no arquivo mais recente
+    const timestamps = data.map(f => new Date(f.updated_at).getTime());
+    const latestSync = timestamps.length > 0 ? Math.max(...timestamps) : Date.now();
 
     return {
       mainValue: filesOnly.length,
@@ -96,12 +102,12 @@ export const SupabasePartnerService: IPartnerService = {
       pendingValue: pending,
       status: pending > 0 ? 'PENDING' : 'REGULAR',
       mainLabel: 'Certificados Totais',
-      subLabel: 'Validados'
+      subLabel: 'Validados',
+      lastAnalysis: new Date(latestSync).toISOString()
     };
   },
 
   logFileView: async (user, file) => {
-    // Se for um cliente visualizando, atualiza o timestamp no metadata do arquivo
     if (user.role === UserRole.CLIENT) {
         try {
             const now = new Date().toISOString();

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Check, User, Key, MessageSquare, 
-  ClipboardCheck, Activity, Clock, ShieldCheck, ShieldAlert, Mail, PenTool
+  ClipboardCheck, Activity, Clock, ShieldCheck, ShieldAlert, Mail, PenTool, X, Plus
 } from 'lucide-react';
 import { SteelBatchMetadata, QualityStatus, UserRole, AuditSignature } from '../../../../types/index.ts';
 import { useToast } from '../../../../context/notificationContext.tsx';
@@ -24,18 +24,21 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
   const [contestationInput, setContestationInput] = useState('');
   const [currentTimeSP, setCurrentTimeSP] = useState('');
   
+  // Estados para formulário de rejeição documental (Passo 2)
+  const [isRejectingStep2, setIsRejectingStep2] = useState(false);
+  const [step2Notes, setStep2Notes] = useState('');
+  const [step2Flags, setStep2Flags] = useState<string[]>([]);
+  const [currentFlagInput, setCurrentFlagInput] = useState('');
+
   const currentStep = metadata?.currentStep || 1;
   const isAnalyst = userRole === UserRole.QUALITY || userRole === UserRole.ADMIN;
   const isClient = userRole === UserRole.CLIENT;
 
-  // Relógio em Tempo Real (Fuso SP) para o preview da assinatura
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
       setCurrentTimeSP(new Intl.DateTimeFormat('pt-BR', {
-        dateStyle: 'short',
-        timeStyle: 'medium',
-        timeZone: 'America/Sao_Paulo'
+        dateStyle: 'short', timeStyle: 'medium', timeZone: 'America/Sao_Paulo'
       }).format(now));
     }, 1000);
     return () => clearInterval(timer);
@@ -50,17 +53,28 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
     action: action
   });
 
+  const handleAddFlag = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!currentFlagInput.trim()) return;
+    if (step2Flags.includes(currentFlagInput.trim().toUpperCase())) {
+        setCurrentFlagInput('');
+        return;
+    }
+    setStep2Flags([...step2Flags, currentFlagInput.trim().toUpperCase()]);
+    setCurrentFlagInput('');
+  };
+
+  const handleRemoveFlag = (flagToRemove: string) => {
+    setStep2Flags(step2Flags.filter(f => f !== flagToRemove));
+  };
+
   const handleAction = async (step: number, status: 'APPROVED' | 'REJECTED', stepUpdates: Partial<SteelBatchMetadata>) => {
     setIsSyncing(true);
     try {
       const sigMap: Record<number, keyof SteelBatchMetadata['signatures']> = {
-        1: 'step1_release',
-        2: 'step2_documental',
-        3: 'step3_physical',
-        4: 'step4_contestation',
-        5: 'step5_mediation_review',
-        6: 'step6_system_log',
-        7: 'step7_final_verdict'
+        1: 'step1_release', 2: 'step2_documental', 3: 'step3_physical',
+        4: 'step4_contestation', 5: 'step5_mediation_review',
+        6: 'step6_system_log', 7: 'step7_final_verdict'
       };
 
       const sigKey = sigMap[step];
@@ -69,25 +83,20 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
 
       if (step === 1) {
         if (status === 'APPROVED') {
-          nextStep = 2; // Entra na fase de conferência (Passos 2 e 3 paralelos)
+          nextStep = 2;
           nextGlobalStatus = QualityStatus.SENT;
         }
       } else if (step === 2 || step === 3) {
-        // Lógica de Independência: Verifica se ambos foram concluídos
         const isDocCompleted = step === 2 || !!metadata?.signatures?.step2_documental;
         const isPhysCompleted = step === 3 || !!metadata?.signatures?.step3_physical;
-        
-        // Verifica se há rejeição em qualquer um dos passos (o atual ou o já gravado)
         const hasRejection = (step === 2 && status === 'REJECTED') || 
                            (step === 3 && status === 'REJECTED') ||
                            metadata?.documentalStatus === 'REJECTED' ||
                            metadata?.physicalStatus === 'REJECTED';
 
         if (isDocCompleted && isPhysCompleted) {
-          // Se ambos terminaram, decide se vai para Arbitragem (4) ou Consolidação (6)
           nextStep = hasRejection ? 4 : 6;
         } else {
-          // Mantém no step 2 (fase de conferência) até o outro ser assinado
           nextStep = 2;
         }
       } else if (step === 4) {
@@ -116,6 +125,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
       });
 
       showToast(`Passo ${step} assinado com sucesso.`, "success");
+      if (step === 2) setIsRejectingStep2(false);
     } catch (e) {
       showToast("Erro ao sincronizar assinatura no Ledger.", "error");
     } finally {
@@ -163,7 +173,6 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
           {isClient && currentStep === 1 && <WaitBadge label="Aguardando Triagem Vital" />}
         </StepCard>
 
-        {/* PASSO 2 E 3 AGORA SÃO PARALELOS NA FASE (currentStep === 2) */}
         <StepCard 
           step={2} 
           title="2. Conferência de Dados" 
@@ -172,13 +181,69 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
           completed={!!metadata?.signatures?.step2_documental}
           status={metadata?.documentalStatus}
           signature={metadata?.signatures?.step2_documental}
+          flags={metadata?.documentalFlags}
+          notes={metadata?.documentalNotes}
         >
           {isClient && currentStep === 2 && !metadata?.signatures?.step2_documental && (
             <div className="space-y-3 animate-in slide-in-from-bottom-2">
-               <div className="flex gap-3">
-                    <button onClick={() => handleAction(2, 'APPROVED', { documentalStatus: 'APPROVED' })} className="flex-1 px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 active:scale-95 transition-all shadow-md">Aprovar Dados</button>
-                    <button onClick={() => handleAction(2, 'REJECTED', { documentalStatus: 'REJECTED' })} className="flex-1 px-6 py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-red-700 active:scale-95 transition-all shadow-md">Divergência</button>
-               </div>
+               {!isRejectingStep2 ? (
+                  <div className="flex gap-3">
+                      <button onClick={() => handleAction(2, 'APPROVED', { documentalStatus: 'APPROVED' })} className="flex-1 px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 active:scale-95 transition-all shadow-md">Aprovar Dados</button>
+                      <button onClick={() => setIsRejectingStep2(true)} className="flex-1 px-6 py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-red-700 active:scale-95 transition-all shadow-md">Divergência</button>
+                  </div>
+               ) : (
+                  <div className="bg-slate-50 p-6 rounded-2xl border border-red-200 space-y-6 animate-in zoom-in-95">
+                      <header className="flex items-center justify-between">
+                          <h5 className="text-[10px] font-black text-red-600 uppercase tracking-[3px]">Relatar Não-Conformidade</h5>
+                          <button onClick={() => setIsRejectingStep2(false)} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
+                      </header>
+
+                      {/* Flags Customizáveis */}
+                      <div className="space-y-3">
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Marcadores de Erro (Flags)</label>
+                          <form onSubmit={handleAddFlag} className="flex gap-2">
+                              <input 
+                                  type="text" 
+                                  placeholder="Ex: Peso Divergente..." 
+                                  className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-red-400 transition-all"
+                                  value={currentFlagInput}
+                                  onChange={e => setCurrentFlagInput(e.target.value)}
+                              />
+                              <button type="button" onClick={() => handleAddFlag()} className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 rounded-lg transition-all shadow-sm">
+                                  <Plus size={16} />
+                              </button>
+                          </form>
+                          <div className="flex flex-wrap gap-2 min-h-[24px]">
+                              {step2Flags.map(flag => (
+                                  <span key={flag} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-600 border border-red-100 rounded-md text-[9px] font-black uppercase tracking-tight">
+                                      {flag}
+                                      <button onClick={() => handleRemoveFlag(flag)} className="hover:text-red-900"><X size={10} /></button>
+                                  </span>
+                              ))}
+                              {step2Flags.length === 0 && <p className="text-[9px] text-slate-400 italic">Nenhum marcador adicionado.</p>}
+                          </div>
+                      </div>
+
+                      {/* Observações */}
+                      <div className="space-y-2">
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Observações Técnicas</label>
+                          <textarea 
+                              className="w-full p-4 bg-white border border-slate-200 rounded-xl text-xs min-h-[100px] outline-none focus:border-red-400 transition-all font-medium"
+                              placeholder="Descreva detalhadamente a divergência identificada no laudo..."
+                              value={step2Notes}
+                              onChange={e => setStep2Notes(e.target.value)}
+                          />
+                      </div>
+
+                      <button 
+                          disabled={isSyncing || (step2Flags.length === 0 && !step2Notes.trim())}
+                          onClick={() => handleAction(2, 'REJECTED', { documentalStatus: 'REJECTED', documentalFlags: step2Flags, documentalNotes: step2Notes })}
+                          className="w-full py-3 bg-red-600 text-white rounded-xl font-black text-[10px] uppercase tracking-[3px] shadow-lg hover:bg-red-700 transition-all active:scale-95 disabled:opacity-30"
+                      >
+                          {isSyncing ? "Sincronizando..." : "Assinar Rejeição Documental"}
+                      </button>
+                  </div>
+               )}
                <SignaturePreviewSeal />
             </div>
           )}
@@ -193,6 +258,8 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
           completed={!!metadata?.signatures?.step3_physical}
           status={metadata?.physicalStatus}
           signature={metadata?.signatures?.step3_physical}
+          flags={metadata?.physicalFlags}
+          notes={metadata?.physicalNotes}
         >
           {isClient && currentStep === 2 && !metadata?.signatures?.step3_physical && (
             <div className="space-y-3 animate-in slide-in-from-bottom-2">
@@ -360,7 +427,7 @@ const WaitBadge = ({ label, icon: Icon = Clock }: { label: string; icon?: any })
     </div>
 );
 
-const StepCard = ({ step, title, desc, active, completed, signature, status, children }: any) => {
+const StepCard = ({ step, title, desc, active, completed, signature, status, flags, notes, children }: any) => {
   const isRejected = status === 'REJECTED';
 
   const formatSPTime = (iso: string) => {
@@ -392,6 +459,24 @@ const StepCard = ({ step, title, desc, active, completed, signature, status, chi
             {isRejected && <span className="text-[8px] font-black bg-red-600 text-white px-2 py-0.5 rounded-full animate-pulse tracking-widest shadow-sm">DIVERGÊNCIA</span>}
           </div>
           <p className="text-[11px] text-slate-500 mt-0.5 font-medium leading-relaxed max-w-xl">{desc}</p>
+
+          {/* Exibição de Flags e Notas em passos concluídos com rejeição */}
+          {completed && isRejected && (
+              <div className="mt-4 space-y-3">
+                  {flags && flags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                          {flags.map((f: string) => (
+                              <span key={f} className="px-2 py-0.5 bg-red-50 text-red-600 border border-red-100 rounded text-[8px] font-black uppercase">{f}</span>
+                          ))}
+                      </div>
+                  )}
+                  {notes && (
+                      <div className="p-3 bg-red-50/30 border-l-2 border-red-400 rounded text-xs text-red-900 font-medium italic">
+                          "{notes}"
+                      </div>
+                  )}
+              </div>
+          )}
 
           {signature && (
             <div className="mt-4 p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-1">

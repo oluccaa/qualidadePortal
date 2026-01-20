@@ -126,13 +126,13 @@ const FilePreviewPage: React.FC = () => {
       {/* Viewport Area */}
       <div className="flex-1 relative overflow-hidden bg-[#020617]">
         {url ? (
-          // Fix: Removed unused and undeclared onPageChange and onZoomChange props from PdfViewport call to fix TS error.
           <PdfViewport 
             key={`${fileId}-${url}`}
             url={url} 
             pageNum={pageNum} 
             zoom={zoom} 
             onPdfLoad={setNumPages} 
+            isHandToolActive={activeTool === 'hand'}
             renderOverlay={(w, h) => (
               <DrawingCanvas 
                 tool={activeTool} 

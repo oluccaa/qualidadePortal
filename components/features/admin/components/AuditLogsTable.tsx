@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Eye, Filter } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -12,15 +11,12 @@ interface AuditLogsTableProps {
 }
 
 const SEVERITY_CONFIG: Record<string, string> = {
-  INFO: 'bg-blue-100 text-blue-700',
-  WARNING: 'bg-orange-100 text-orange-700',
-  ERROR: 'bg-red-100 text-red-700',
-  CRITICAL: 'bg-red-200 text-red-800 font-black animate-pulse',
+  INFO: 'bg-blue-50 text-blue-700 border-blue-100',
+  WARNING: 'bg-orange-50 text-orange-700 border-orange-100',
+  ERROR: 'bg-red-50 text-red-700 border-red-100',
+  CRITICAL: 'bg-red-600 text-white border-red-700 font-black animate-pulse',
 };
 
-/**
- * Mapeia as chaves de ação do sistema para descrições em português legíveis.
- */
 const translateAction = (action: string): string => {
   const mapping: Record<string, string> = {
     'QUALITY_VEREDICT_APPROVED': 'Aprovação de Laudo Técnico',
@@ -39,30 +35,31 @@ const translateAction = (action: string): string => {
     'REVIEW_SUBMITTED_APPROVED': 'Aceite de Certificado Confirmado',
     'REVIEW_SUBMITTED_REJECTED': 'Contestação de Certificado Enviada'
   };
-
   return mapping[action] || action.replace(/_/g, ' ');
 };
 
 export const AuditLogsTable: React.FC<AuditLogsTableProps> = ({ 
     logs, 
-    severityFilter, 
-    onSeverityChange, 
     onInvestigate 
 }) => {
     const { t } = useTranslation();
 
     return (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col animate-in fade-in duration-300">
-            <FilterBar 
-              filter={severityFilter} 
-              onFilterChange={onSeverityChange} 
-              label={t('admin.users.filters')} 
-            />
-
-            <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[800px]">
-                    <TableHeader t={t} />
-                    <tbody className="divide-y divide-slate-100 bg-white">
+        <div className="w-full flex flex-col animate-in fade-in duration-300">
+            <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full text-left border-separate border-spacing-y-2 min-w-[1000px]">
+                    <thead className="text-slate-400">
+                        <tr>
+                            <th className="px-6 py-2 text-[9px] font-black uppercase tracking-[3px]">{t('admin.stats.headers.timestamp')}</th>
+                            <th className="px-6 py-2 text-[9px] font-black uppercase tracking-[3px]">{t('admin.stats.headers.user')}</th>
+                            <th className="px-6 py-2 text-[9px] font-black uppercase tracking-[3px]">{t('admin.stats.headers.action')}</th>
+                            <th className="px-6 py-2 text-[9px] font-black uppercase tracking-[3px]">{t('admin.stats.headers.target')}</th>
+                            <th className="px-6 py-2 text-[9px] font-black uppercase tracking-[3px]">{t('admin.stats.headers.ip')}</th>
+                            <th className="px-6 py-2 text-[9px] font-black uppercase tracking-[3px]">{t('admin.stats.headers.severity')}</th>
+                            <th className="px-6 py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
                         {logs.map(log => (
                             <AuditLogRow 
                                 key={log.id} 
@@ -77,74 +74,39 @@ export const AuditLogsTable: React.FC<AuditLogsTableProps> = ({
     );
 };
 
-interface FilterBarProps {
-    filter: string;
-    onFilterChange: (value: string) => void;
-    label: string;
-}
-
-const FilterBar = ({ filter, onFilterChange, label }: FilterBarProps) => (
-  <div className="p-3 border-b border-slate-100 flex flex-wrap gap-3 bg-slate-50/50 items-center">
-      <div className="flex items-center gap-2">
-          <Filter size={14} className="text-slate-400" />
-          <span className="text-xs font-bold text-slate-500 uppercase">{label}:</span>
-      </div>
-      <select 
-          value={filter}
-          onChange={(e) => onFilterChange(e.target.value)}
-          className="text-xs border-none bg-white py-1.5 px-3 rounded-lg shadow-sm ring-1 ring-slate-200 focus:ring-blue-500 cursor-pointer"
-      >
-          <option value="ALL">Todas Severidades</option>
-          <option value="INFO">Info</option>
-          <option value="WARNING">Warning</option>
-          <option value="ERROR">Error</option>
-          <option value="CRITICAL">Critical</option>
-      </select>
-  </div>
-);
-
-const TableHeader = ({ t }: { t: any }) => (
-  <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 sticky top-0 z-10">
-      <tr>
-          <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider">{t('admin.stats.headers.timestamp')}</th>
-          <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider">{t('admin.stats.headers.user')}</th>
-          <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider">{t('admin.stats.headers.action')}</th>
-          <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider">{t('admin.stats.headers.target')}</th>
-          <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider">{t('admin.stats.headers.ip')}</th>
-          <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider">{t('admin.stats.headers.severity')}</th>
-          <th className="px-6 py-4"></th>
-      </tr>
-  </thead>
-);
-
 const AuditLogRow: React.FC<{ log: AuditLog, onInvestigate: () => void }> = ({ log, onInvestigate }) => (
-  <tr className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={onInvestigate}>
-      <td className="px-6 py-3 text-xs text-slate-500 font-mono whitespace-nowrap">
-          {new Date(log.timestamp).toLocaleString()}
+  <tr 
+    className="group bg-white hover:bg-slate-50 transition-all cursor-pointer shadow-sm hover:shadow-md border border-slate-100" 
+    onClick={onInvestigate}
+  >
+      <td className="px-6 py-4 text-[11px] text-slate-500 font-mono first:rounded-l-2xl">
+          {new Date(log.timestamp).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' })}
       </td>
-      <td className="px-6 py-3 text-sm text-slate-700">
-          <div className="font-medium">{log.userName}</div>
-          <div className="text-xs text-slate-400">{log.userRole}</div>
+      <td className="px-6 py-4">
+          <div className="text-[11px] font-black text-slate-800 uppercase tracking-tight">{log.userName}</div>
+          <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{log.userRole}</div>
       </td>
-      <td className="px-6 py-3 text-sm font-bold text-slate-800">
-          {translateAction(log.action)}
+      <td className="px-6 py-4">
+          <span className="text-[11px] font-black text-blue-900 uppercase tracking-tight bg-blue-50 px-2 py-1 rounded-lg">
+            {translateAction(log.action)}
+          </span>
       </td>
-      <td className="px-6 py-3 text-xs text-slate-500 font-mono">
-          {log.target.substring(0, 30)}{log.target.length > 30 && '...'}
+      <td className="px-6 py-4 max-w-[200px]">
+          <p className="text-[10px] text-slate-500 font-medium truncate uppercase" title={log.target}>
+            {log.target}
+          </p>
       </td>
-      <td className="px-6 py-3 text-xs text-slate-500 font-mono">
-          {log.ip ? (
-            <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{log.ip}</span>
-          ) : (
-            <span className="text-slate-300 italic text-[10px]">Nativo BD</span>
-          )}
+      <td className="px-6 py-4">
+          <span className="text-[10px] font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100">
+            {log.ip || '---'}
+          </span>
       </td>
-      <td className="px-6 py-3">
+      <td className="px-6 py-4">
           <SeverityBadge severity={log.severity} />
       </td>
-      <td className="px-6 py-3 text-right">
-          <button className="text-blue-600 hover:text-blue-800 text-xs font-bold flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Eye size={12} /> Investigar
+      <td className="px-6 py-4 text-right last:rounded-r-2xl">
+          <button className="p-2 bg-slate-100 text-slate-400 group-hover:bg-blue-600 group-hover:text-white rounded-xl transition-all shadow-sm">
+              <Eye size={14} />
           </button>
       </td>
   </tr>
@@ -153,7 +115,7 @@ const AuditLogRow: React.FC<{ log: AuditLog, onInvestigate: () => void }> = ({ l
 const SeverityBadge = ({ severity }: { severity: string }) => {
   const colorClass = SEVERITY_CONFIG[severity] || SEVERITY_CONFIG.INFO;
   return (
-    <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${colorClass}`}>
+    <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border ${colorClass}`}>
         {severity}
     </span>
   );

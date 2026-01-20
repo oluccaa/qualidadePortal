@@ -4,7 +4,6 @@ import {
   Pencil, Highlighter, Square, Circle, Eraser, Save, 
   Hand, History
 } from 'lucide-react';
-// Fix: Added DocumentAnnotations and AnnotationItem to imports
 import { FileNode, UserRole, SteelBatchMetadata, DocumentAnnotations, AnnotationItem } from '../../../types/index.ts';
 import { useAuth } from '../../../context/authContext.tsx';
 import { AuditWorkflow } from '../quality/components/AuditWorkflow.tsx';
@@ -20,7 +19,6 @@ export const FilePreviewModal: React.FC<{
 }> = ({ initialFile, isOpen, onClose }) => {
   const { user } = useAuth();
   const [activeTool, setActiveTool] = useState<DrawingTool>('hand');
-  // Fix: Replaced drawingData string state with structured DocumentAnnotations state to satisfy DrawingCanvasProps
   const [annotations, setAnnotations] = useState<DocumentAnnotations>({});
   const replacementInputRef = useRef<HTMLInputElement>(null);
   
@@ -37,7 +35,6 @@ export const FilePreviewModal: React.FC<{
     handleReplacementUpload
   } = useFilePreview(user, initialFile);
 
-  // Fix: Added effect to load existing annotations from file metadata when the file changes
   useEffect(() => {
     if (currentFile?.metadata?.documentalDrawings) {
       try {
@@ -52,7 +49,6 @@ export const FilePreviewModal: React.FC<{
     }
   }, [currentFile?.id]);
 
-  // Fix: Updated handleSaveAudited to stringify the annotations dictionary for persistence
   const handleSaveAudited = async () => {
     const data = JSON.stringify(annotations);
     await handleUpdateMetadata({ 
@@ -109,14 +105,13 @@ export const FilePreviewModal: React.FC<{
         </header>
 
         <div className="flex-1 relative overflow-hidden bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900 via-[#020617] to-black">
-            {/* Fix: Removed unused and undeclared onPageChange and onZoomChange props from PdfViewport call to fix TS error. */}
             <PdfViewport 
                 url={url} 
                 pageNum={pageNum} 
                 zoom={zoom} 
                 onPdfLoad={() => {}} 
+                isHandToolActive={activeTool === 'hand'}
                 renderOverlay={(w, h) => (
-                    /* Fix: Corrected DrawingCanvas props to pass pageAnnotations and onAnnotationsChange instead of onSave */
                     <DrawingCanvas 
                         tool={activeTool} 
                         color="#ef4444" 
