@@ -124,8 +124,8 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
     }
   };
 
-  const getAnalystName = () => metadata?.signatures?.step1_release?.userName || metadata?.signatures?.step4_contestation?.userName || 'Equipe Técnica';
-  const getPartnerName = () => metadata?.signatures?.step2_documental?.userName || metadata?.signatures?.step3_physical?.userName || 'Representante do Cliente';
+  const getAnalystSignature = () => metadata?.signatures?.step1_release || metadata?.signatures?.step4_contestation;
+  const getPartnerSignature = () => metadata?.signatures?.step2_documental || metadata?.signatures?.step3_physical;
 
   const SignaturePreviewSeal = () => (
     <div className="mt-3 flex items-start gap-2 p-2 bg-slate-50 border border-dashed border-slate-200 rounded-lg opacity-70">
@@ -321,7 +321,10 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                             </p>
                             <div className="pt-2 border-t border-red-50">
                                 <p className="text-[9px] font-black text-slate-400 uppercase">Analista Responsável:</p>
-                                <p className="text-xs font-black text-blue-900 mt-0.5">{getAnalystName()}</p>
+                                <p className="text-xs font-black text-blue-900 mt-0.5">
+                                    {getAnalystSignature()?.userName || 'Equipe Técnica'}
+                                    {getAnalystSignature()?.userEmail && <span className="block text-[10px] font-bold text-slate-400 normal-case">{getAnalystSignature()?.userEmail}</span>}
+                                </p>
                             </div>
                         </>
                     ) : (
@@ -335,7 +338,10 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                             </p>
                             <div className="pt-2 border-t border-slate-100">
                                 <p className="text-[9px] font-black text-slate-400 uppercase">Representante do Cliente:</p>
-                                <p className="text-xs font-black text-slate-800 mt-0.5">{getPartnerName()}</p>
+                                <p className="text-xs font-black text-slate-800 mt-0.5">
+                                    {getPartnerSignature()?.userName || 'Representante do Cliente'}
+                                    {getPartnerSignature()?.userEmail && <span className="block text-[10px] font-bold text-slate-400 normal-case">{getPartnerSignature()?.userEmail}</span>}
+                                </p>
                             </div>
                         </>
                     )}

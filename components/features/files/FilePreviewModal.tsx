@@ -109,13 +109,12 @@ export const FilePreviewModal: React.FC<{
         </header>
 
         <div className="flex-1 relative overflow-hidden bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900 via-[#020617] to-black">
+            {/* Fix: Removed unused and undeclared onPageChange and onZoomChange props from PdfViewport call to fix TS error. */}
             <PdfViewport 
                 url={url} 
                 pageNum={pageNum} 
                 zoom={zoom} 
                 onPdfLoad={() => {}} 
-                onPageChange={setPageNum} 
-                onZoomChange={setZoom} 
                 renderOverlay={(w, h) => (
                     /* Fix: Corrected DrawingCanvas props to pass pageAnnotations and onAnnotationsChange instead of onSave */
                     <DrawingCanvas 
