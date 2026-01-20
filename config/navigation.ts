@@ -1,4 +1,3 @@
-
 import { 
   Users, 
   ShieldCheck, 
@@ -43,7 +42,7 @@ export const getAdminMenuConfig = (t: any): NavSection[] => [
   {
     title: "Auditoria Industrial",
     items: [
-      { label: "Monitor de Carteira", path: '/quality/monitor', icon: ClipboardList },
+      { label: "Fluxo de Auditoria", path: '/quality/monitor', icon: ClipboardList },
       { label: "Gestão de Clientes", path: '/quality/portfolio', icon: Building2 },
       { label: "Logs Forenses", path: '/quality/audit', icon: History }
     ]
@@ -58,7 +57,7 @@ export const getQualityMenuConfig = (t: any): NavSection[] => [
     title: "Operação Técnica",
     items: [
       { label: "Visão Geral", path: '/quality/dashboard', icon: LayoutDashboard, exact: true },
-      { label: "Monitor de Carteira", path: '/quality/monitor', icon: ClipboardList },
+      { label: "Fluxo de Auditoria", path: '/quality/monitor', icon: ClipboardList },
       { label: "Gestão de Clientes", path: '/quality/portfolio', icon: Building2 },
     ]
   },
@@ -80,7 +79,8 @@ export const getClientMenuConfig = (t: any): NavSection[] => [
     title: "Terminal B2B",
     items: [
       { label: "Início", path: '/client/portal', icon: LayoutDashboard, exact: true },
-      { label: "Certificados", path: '/client/portal?view=library', icon: Library },
+      { label: "Arquivos", path: '/client/portal?view=library', icon: Library },
+      { label: "Fluxo de Auditoria", path: '/client/portal?view=audit_flow', icon: ClipboardList },
     ]
   }
 ];
@@ -108,7 +108,7 @@ export const getBottomNavItems = (user: any, t: any): NavItem[] => {
   if (role === UserRole.ADMIN) {
     return [
       { label: "Home", path: '/admin/dashboard', icon: LayoutDashboard },
-      { label: "Monitor", path: '/quality/monitor', icon: ClipboardList },
+      { label: "Fluxo", path: '/quality/monitor', icon: ClipboardList },
       { label: "Consola", path: '/admin/console', icon: Terminal },
     ];
   }
@@ -116,7 +116,7 @@ export const getBottomNavItems = (user: any, t: any): NavItem[] => {
   if (role === UserRole.QUALITY) {
     return [
       { label: "Home", path: '/quality/dashboard', icon: LayoutDashboard },
-      { label: "Monitor", path: '/quality/monitor', icon: ClipboardList },
+      { label: "Fluxo", path: '/quality/monitor', icon: ClipboardList },
       { label: "Clientes", path: '/quality/portfolio', icon: Building2 },
     ];
   }
@@ -124,6 +124,7 @@ export const getBottomNavItems = (user: any, t: any): NavItem[] => {
   if (role === UserRole.CLIENT) {
     return [
         { label: "Início", path: '/client/portal', icon: LayoutDashboard },
+        { label: "Fluxo", path: '/client/portal?view=audit_flow', icon: ClipboardList },
         { label: "Arquivos", path: '/client/portal?view=library', icon: Library },
     ];
   }

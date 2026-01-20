@@ -1,9 +1,9 @@
-
 import React, { useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ClientLayout } from '../../components/layout/ClientLayout.tsx';
 import ClientDashboard from '../dashboards/ClientDashboard.tsx';
 import { PartnerLibraryView } from '../../components/features/partner/views/PartnerLibraryView.tsx';
+import { QualityPortfolioView } from '../../components/features/quality/views/QualityPortfolioView.tsx';
 
 const ClientPortal: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -17,16 +17,29 @@ const ClientPortal: React.FC = () => {
     }, { replace: true });
   }, [setSearchParams]);
 
-  const pageTitle = activeView === 'home' ? "Portal do Parceiro" : "Biblioteca de Ativos";
+  const getPageTitle = () => {
+    switch (activeView) {
+      case 'home': return "Portal do Parceiro";
+      case 'library': return "Biblioteca de Ativos";
+      case 'audit_flow': return "Fluxo de Auditoria Ativo";
+      default: return "Portal Vital";
+    }
+  };
 
   return (
     <ClientLayout 
-      title={pageTitle} 
+      title={getPageTitle()} 
       activeView={activeView} 
       onViewChange={handleViewChange}
     >
       <main className="flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-bottom-3 duration-700">
-        {activeView === 'home' ? <ClientDashboard /> : <PartnerLibraryView />}
+        {activeView === 'home' && <ClientDashboard />}
+        {activeView === 'library' && <PartnerLibraryView />}
+        {activeView === 'audit_flow' && (
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
+            <QualityPortfolioView />
+          </div>
+        )}
       </main>
     </ClientLayout>
   );

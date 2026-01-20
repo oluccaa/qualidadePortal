@@ -1,9 +1,8 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../../context/authContext.tsx';
 import { qualityService } from '../../../../lib/services/index.ts';
 import { supabase } from '../../../../lib/supabaseClient.ts';
-import { ClientOrganization, FileNode, QualityStatus } from '../../../../types/index.ts';
+import { ClientOrganization, FileNode, QualityStatus, UserRole, normalizeRole } from '../../../../types/index.ts';
 
 export const useQualityPortfolio = () => {
   const { user } = useAuth();
@@ -16,28 +15,43 @@ export const useQualityPortfolio = () => {
     if (!user) return;
     setIsLoading(true);
     try {
-      // 1. Busca Portfólio Global
-      const portfolio = await qualityService.getManagedPortfolio(user.id);
+      const role = normalizeRole(user.role);
+      const isClient = role === UserRole.CLIENT;
 
-      // 2. Busca ativos em PENDING (Aguardando ação de qualquer parte - Vital ou Cliente)
-      const { data: pending, error: pendingError } = await supabase
+      // 1. Busca Portfólio Global (Apenas para Staff)
+      if (!isClient) {
+        const portfolio = await qualityService.getManagedPortfolio(user.id);
+        setClients(portfolio);
+      }
+
+      // 2. Query Base para Ativos em PENDING
+      let pendingQuery = supabase
         .from('files')
         .select('*, profiles:uploaded_by(full_name)')
         .eq('metadata->>status', QualityStatus.PENDING)
         .neq('type', 'FOLDER');
 
+      if (isClient) {
+        pendingQuery = pendingQuery.eq('owner_id', user.organizationId);
+      }
+
+      const { data: pending, error: pendingError } = await pendingQuery;
       if (pendingError) console.error("Erro ao buscar pendências:", pendingError);
 
-      // 3. Busca arquivos em REJECTED ou TO_DELETE (Aguardando novo upload da Vital)
-      const { data: rejected, error: rejectedError } = await supabase
+      // 3. Query Base para Ativos REJECTED ou TO_DELETE
+      let rejectedQuery = supabase
         .from('files')
         .select('*')
         .or(`metadata->>status.eq.${QualityStatus.REJECTED},metadata->>status.eq.${QualityStatus.TO_DELETE}`)
         .neq('type', 'FOLDER');
 
+      if (isClient) {
+        rejectedQuery = rejectedQuery.eq('owner_id', user.organizationId);
+      }
+
+      const { data: rejected, error: rejectedError } = await rejectedQuery;
       if (rejectedError) console.error("Erro ao buscar arquivos rejeitados:", rejectedError);
 
-      setClients(portfolio);
       setPendingFiles(pending || []);
       setRejectedFiles(rejected || []);
     } catch (err) {

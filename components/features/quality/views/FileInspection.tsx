@@ -59,18 +59,65 @@ export const FileInspection: React.FC = () => {
       return org.name || 'N/A';
   };
 
-  // Prevenção de erro em storagePath nulo
   const storagePath = inspectorFile.storagePath || '';
   const hashValue = storagePath.split('/').pop()?.substring(0, 12).toUpperCase() || 'N/A';
 
-  // Cálculo de progresso corrigido
+  /**
+   * MOTOR DE CÁLCULO DE PROGRESSO VITAL v4.0 (9 UNIDADES)
+   * Fórmula: x + 2x + 2x + x + x + x + x = 9x
+   * Condição Especial: Se status global === APPROVED, progresso é 100%.
+   */
   const calculateProgress = () => {
     const meta = inspectorFile.metadata;
-    if (meta?.status === QualityStatus.APPROVED || meta?.status === QualityStatus.REJECTED) {
-      return 100;
+    if (!meta) return 0;
+    
+    // Se o protocolo já foi certificado com sucesso, o progresso é absoluto.
+    if (meta.status === QualityStatus.APPROVED) return 100;
+
+    const sigs = meta.signatures || {};
+    let units = 0;
+    const totalUnits = 9;
+
+    // Passo 1: Liberação (Peso 1)
+    if (sigs.step1_release) units += 1;
+
+    const s2Done = !!sigs.step2_documental;
+    const s3Done = !!sigs.step3_physical;
+
+    // Passo 2: Dados Técnicos (Peso 2 se Aprovado, Peso 1 se Rejeitado)
+    if (s2Done) {
+      units += (meta.documentalStatus === 'APPROVED' ? 2 : 1);
     }
-    const step = meta?.currentStep || 1;
-    return Math.round(((step - 1) / 7) * 100);
+
+    // Passo 3: Vistoria de Carga (Peso 2 se Aprovado, Peso 1 se Rejeitado)
+    if (s3Done) {
+      units += (meta.physicalStatus === 'APPROVED' ? 2 : 1);
+    }
+
+    // Passos 4 e 5: Arbitragem e Veredito (Peso 1 cada)
+    if (s2Done && s3Done) {
+      const isS2Approved = meta.documentalStatus === 'APPROVED';
+      const isS3Approved = meta.physicalStatus === 'APPROVED';
+      
+      if (isS2Approved && isS3Approved) {
+        // Bypass de Mediação: Concede pontos automaticamente para fluxo limpo
+        units += 2;
+      } else {
+        // Fluxo de Divergência: Pontos contam apenas com a assinatura
+        if (sigs.step4_contestation) units += 1;
+        if (sigs.step5_mediation_review) units += 1;
+      }
+    }
+
+    // Passo 6: Consolidação (Peso 1)
+    if (sigs.step6_system_log) units += 1;
+
+    // Passo 7: Certificação Final (Peso 1)
+    if (sigs.step7_final_verdict) units += 1;
+
+    const percentage = (units / totalUnits) * 100;
+    
+    return Math.min(Math.round(percentage), 100);
   };
 
   return (
@@ -119,7 +166,6 @@ export const FileInspection: React.FC = () => {
         <div className="flex-1 flex overflow-hidden">
           <aside className={`w-72 border-r border-slate-100 ${theme.asideBg} hidden lg:flex flex-col shrink-0 p-6 space-y-8 overflow-y-auto custom-scrollbar`}>
             
-            {/* Seção 1: Identificação Técnica */}
             <section className="space-y-4">
                 <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Database size={12} /> Rastreabilidade Ledger
@@ -131,7 +177,6 @@ export const FileInspection: React.FC = () => {
                 </div>
             </section>
 
-            {/* Seção 2: Partes Envolvidas */}
             <section className="space-y-4">
                 <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Users size={12} /> Partes Envolvidas
@@ -153,15 +198,6 @@ export const FileInspection: React.FC = () => {
                          <TechnicalInfo 
                             label="Início do Fluxo" 
                             value={formatDateTime(inspectorFile.metadata?.signatures?.step1_release?.timestamp)} 
-                         />
-                      </div>
-                      <div className="flex items-start gap-3">
-                         <div className="p-1.5 bg-slate-50 text-slate-400 rounded-lg"><Check size={12}/></div>
-                         <TechnicalInfo 
-                            label="Encerramento" 
-                            value={inspectorFile.metadata?.signatures?.step7_final_verdict 
-                                ? formatDateTime(inspectorFile.metadata?.signatures?.step7_final_verdict.timestamp) 
-                                : 'Em Processamento'} 
                          />
                       </div>
                     </div>
@@ -216,8 +252,4 @@ const TechnicalInfo = ({ label, value }: { label: string; value: string }) => (
     <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{label}</span>
     <span className="text-[10px] font-bold text-slate-700 uppercase tracking-tight truncate">{value}</span>
   </div>
-);
-
-const Check = ({ size }: { size: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
 );
