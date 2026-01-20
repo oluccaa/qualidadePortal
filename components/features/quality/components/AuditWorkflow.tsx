@@ -1,8 +1,7 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Check, User, Key, MessageSquare, 
-  ClipboardCheck, Activity, Clock, ShieldCheck, ShieldAlert
+  ClipboardCheck, Activity, Clock, ShieldCheck, ShieldAlert, Mail, PenTool
 } from 'lucide-react';
 import { SteelBatchMetadata, QualityStatus, UserRole, AuditSignature } from '../../../../types/index.ts';
 import { useToast } from '../../../../context/notificationContext.tsx';
@@ -18,19 +17,34 @@ interface AuditWorkflowProps {
 }
 
 export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ 
-    metadata, userRole, userName, onUpdate 
+    metadata, userRole, userName, userEmail, onUpdate 
 }) => {
   const { showToast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
   const [contestationInput, setContestationInput] = useState('');
+  const [currentTimeSP, setCurrentTimeSP] = useState('');
   
   const currentStep = metadata?.currentStep || 1;
   const isAnalyst = userRole === UserRole.QUALITY || userRole === UserRole.ADMIN;
   const isClient = userRole === UserRole.CLIENT;
 
+  // Relógio em Tempo Real (Fuso SP) para o preview da assinatura
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      setCurrentTimeSP(new Intl.DateTimeFormat('pt-BR', {
+        dateStyle: 'short',
+        timeStyle: 'medium',
+        timeZone: 'America/Sao_Paulo'
+      }).format(now));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const createSignature = (action: string): AuditSignature => ({
     userId: 'system_protocol',
     userName: userName,
+    userEmail: userEmail,
     userRole: userRole,
     timestamp: new Date().toISOString(),
     action: action
@@ -53,45 +67,32 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
       let nextStep = currentStep;
       let nextGlobalStatus = metadata?.status || QualityStatus.PENDING;
 
-      // MÁQUINA DE ESTADOS INDEPENDENTE AÇOS VITAL
       switch(step) {
-        case 1: // Liberação Qualidade -> Vai para Passo 2
+        case 1: 
           if (status === 'APPROVED') {
             nextStep = 2;
             nextGlobalStatus = QualityStatus.SENT;
           }
           break;
-
-        case 2: // Conferência de Dados (Cliente) -> Vai OBRIGATORIAMENTE para Passo 3
-          if (status === 'APPROVED') {
-            nextStep = 3; 
-          } else {
-            nextStep = 4; // Arbitragem se houver divergência documental
-          }
+        case 2: 
+          if (status === 'APPROVED') nextStep = 3; 
+          else nextStep = 4;
           break;
-
-        case 3: // Vistoria de Carga (Cliente) -> Se OK, vai para Consolidação (Passo 6)
-          if (status === 'APPROVED') {
-            nextStep = 6; 
-          } else {
-            nextStep = 4; // Arbitragem se houver avaria física
-          }
+        case 3: 
+          if (status === 'APPROVED') nextStep = 6; 
+          else nextStep = 4;
           break;
-
-        case 4: // Arbitragem Técnica (Analista) -> Vai para Veredito do Parceiro
+        case 4: 
           nextStep = 5;
           break;
-
-        case 5: // Veredito do Parceiro (Cliente) -> Se aceitar arbitragem, vai para Passo 6
-          if (status === 'APPROVED') {
-            nextStep = 6;
-          } else {
+        case 5: 
+          if (status === 'APPROVED') nextStep = 6;
+          else {
             nextGlobalStatus = QualityStatus.REJECTED;
-            nextStep = 7; // Encerra como Reprovado
+            nextStep = 7; 
           }
           break;
-
-        case 6: // Consolidação Final (Cliente) -> Conclui Protocolo
+        case 6: 
           nextStep = 7;
           nextGlobalStatus = QualityStatus.APPROVED;
           break;
@@ -109,14 +110,28 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
         status: nextGlobalStatus
       });
 
-      showToast(`Passo ${step} concluído. Avançando para: ${nextStep}`, "success");
+      showToast(`Passo ${step} assinado com sucesso.`, "success");
     } catch (e) {
-      showToast("Erro ao sincronizar Ledger Vital.", "error");
+      showToast("Erro ao sincronizar assinatura no Ledger.", "error");
     } finally {
       setIsSyncing(false);
       setContestationInput('');
     }
   };
+
+  const getAnalystName = () => metadata?.signatures?.step1_release?.userName || metadata?.signatures?.step4_contestation?.userName || 'Equipe Técnica';
+  const getPartnerName = () => metadata?.signatures?.step2_documental?.userName || metadata?.signatures?.step3_physical?.userName || 'Representante do Cliente';
+
+  const SignaturePreviewSeal = () => (
+    <div className="mt-3 flex items-start gap-2 p-2 bg-slate-50 border border-dashed border-slate-200 rounded-lg opacity-70">
+        <PenTool size={12} className="text-blue-500 mt-0.5" />
+        <div className="space-y-0.5">
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Aguardando Assinatura Digital:</p>
+            <p className="text-[9px] font-bold text-slate-700 uppercase">{userName} • {userEmail}</p>
+            <p className="text-[8px] font-mono text-slate-500">Timestamp SP: {currentTimeSP}</p>
+        </div>
+    </div>
+  );
 
   return (
     <div className="space-y-4 pb-20">
@@ -129,13 +144,16 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
           signature={metadata?.signatures?.step1_release}
         >
           {isAnalyst && currentStep === 1 && (
-            <button 
-              disabled={isSyncing}
-              onClick={() => handleAction(1, 'APPROVED', {})}
-              className="px-6 py-3 bg-[#132659] text-white rounded-lg font-black text-[9px] uppercase tracking-[2px] shadow-lg hover:bg-blue-900 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
-            >
-              {isSyncing ? <Activity className="animate-spin" size={14}/> : <><Key size={14} className="text-blue-400" /> Liberar para o Cliente</>}
-            </button>
+            <div className="space-y-2">
+                <button 
+                disabled={isSyncing}
+                onClick={() => handleAction(1, 'APPROVED', {})}
+                className="w-full px-6 py-3 bg-[#132659] text-white rounded-lg font-black text-[9px] uppercase tracking-[2px] shadow-lg hover:bg-blue-900 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
+                >
+                {isSyncing ? <Activity className="animate-spin" size={14}/> : <><Key size={14} className="text-blue-400" /> Liberar e Assinar</>}
+                </button>
+                <SignaturePreviewSeal />
+            </div>
           )}
           {isClient && currentStep === 1 && <WaitBadge label="Aguardando Triagem Vital" />}
         </StepCard>
@@ -150,9 +168,12 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
           signature={metadata?.signatures?.step2_documental}
         >
           {isClient && currentStep === 2 && (
-            <div className="flex gap-3 animate-in slide-in-from-bottom-2">
-               <button onClick={() => handleAction(2, 'APPROVED', { documentalStatus: 'APPROVED' })} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 active:scale-95 transition-all shadow-md">Dados Estão Corretos</button>
-               <button onClick={() => handleAction(2, 'REJECTED', { documentalStatus: 'REJECTED' })} className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-red-700 active:scale-95 transition-all shadow-md">Divergência nos Dados</button>
+            <div className="space-y-3 animate-in slide-in-from-bottom-2">
+               <div className="flex gap-3">
+                    <button onClick={() => handleAction(2, 'APPROVED', { documentalStatus: 'APPROVED' })} className="flex-1 px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 active:scale-95 transition-all shadow-md">Aprovar Dados</button>
+                    <button onClick={() => handleAction(2, 'REJECTED', { documentalStatus: 'REJECTED' })} className="flex-1 px-6 py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-red-700 active:scale-95 transition-all shadow-md">Divergência</button>
+               </div>
+               <SignaturePreviewSeal />
             </div>
           )}
           {isAnalyst && currentStep === 2 && <WaitBadge label="Aguardando Conferência Documental" />}
@@ -168,13 +189,15 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
           signature={metadata?.signatures?.step3_physical}
         >
           {isClient && currentStep === 3 && (
-            <div className="flex gap-3 animate-in slide-in-from-bottom-2">
-               <button onClick={() => handleAction(3, 'APPROVED', { physicalStatus: 'APPROVED' })} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-md">Carga Recebida OK</button>
-               <button onClick={() => handleAction(3, 'REJECTED', { physicalStatus: 'REJECTED' })} className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-red-700 active:scale-95 transition-all shadow-md">Material com Avaria/Erro</button>
+            <div className="space-y-3 animate-in slide-in-from-bottom-2">
+               <div className="flex gap-3">
+                    <button onClick={() => handleAction(3, 'APPROVED', { physicalStatus: 'APPROVED' })} className="flex-1 px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-md">Carga OK</button>
+                    <button onClick={() => handleAction(3, 'REJECTED', { physicalStatus: 'REJECTED' })} className="flex-1 px-6 py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-red-700 active:scale-95 transition-all shadow-md">Reportar Avaria</button>
+               </div>
+               <SignaturePreviewSeal />
             </div>
           )}
           {isAnalyst && currentStep === 3 && <WaitBadge label="Aguardando Vistoria de Carga" />}
-          {currentStep < 3 && <WaitBadge label="Bloqueado: Pendente passo anterior" icon={ShieldAlert} />}
         </StepCard>
 
         <StepCard 
@@ -196,10 +219,11 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                <button 
                   disabled={!contestationInput.trim() || isSyncing}
                   onClick={() => handleAction(4, 'APPROVED', { analystContestationNote: contestationInput })}
-                  className="px-8 py-3 bg-orange-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest shadow-lg hover:bg-orange-700 transition-all active:scale-95 disabled:opacity-50"
+                  className="w-full py-3 bg-orange-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest shadow-lg hover:bg-orange-700 transition-all active:scale-95 disabled:opacity-50"
                >
-                  Enviar Parecer Técnico
+                  Enviar e Assinar Parecer
                </button>
+               <SignaturePreviewSeal />
             </div>
           )}
           {isClient && currentStep === 4 && <WaitBadge label="Em análise técnica pela Qualidade Vital" icon={Activity} />}
@@ -221,9 +245,12 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
               </div>
           )}
           {isClient && currentStep === 5 && (
-            <div className="flex gap-3 animate-in slide-in-from-bottom-2">
-               <button onClick={() => handleAction(5, 'APPROVED', { mediationStatus: 'APPROVED' })} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 shadow-md">Aceitar Mediação</button>
-               <button onClick={() => handleAction(5, 'REJECTED', { mediationStatus: 'REJECTED' })} className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-red-700 shadow-md">Recusar e Encerrar</button>
+            <div className="space-y-3 animate-in slide-in-from-bottom-2">
+               <div className="flex gap-3">
+                    <button onClick={() => handleAction(5, 'APPROVED', { mediationStatus: 'APPROVED' })} className="flex-1 px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 shadow-md">Aceitar</button>
+                    <button onClick={() => handleAction(5, 'REJECTED', { mediationStatus: 'REJECTED' })} className="flex-1 px-6 py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-red-700 shadow-md">Recusar</button>
+               </div>
+               <SignaturePreviewSeal />
             </div>
           )}
         </StepCard>
@@ -237,7 +264,10 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
           signature={metadata?.signatures?.step6_system_log}
         >
           {isClient && currentStep === 6 && (
-            <button onClick={() => handleAction(6, 'APPROVED', {})} className="px-8 py-3 bg-[#132659] text-white rounded-lg font-black text-[9px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">Consolidar Dossier</button>
+            <div className="space-y-3">
+                <button onClick={() => handleAction(6, 'APPROVED', {})} className="w-full px-8 py-3 bg-[#132659] text-white rounded-lg font-black text-[9px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">Consolidar e Assinar</button>
+                <SignaturePreviewSeal />
+            </div>
           )}
           {isAnalyst && currentStep === 6 && <WaitBadge label="Aguardando Assinatura Final" />}
         </StepCard>
@@ -262,13 +292,47 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
               </div>
           )}
           {metadata?.status === QualityStatus.REJECTED && (
-              <div className="p-6 bg-red-50 text-red-700 border-red-100 rounded-2xl border flex items-center gap-6 shadow-inner max-w-xl animate-in zoom-in-95">
-                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-red-500 shadow-sm">
-                    <ShieldAlert size={28} />
+              <div className="p-6 bg-red-50 text-red-700 border-red-100 rounded-2xl border flex flex-col gap-6 shadow-inner max-w-xl animate-in zoom-in-95">
+                  <div className="flex items-center gap-6">
+                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-red-500 shadow-sm shrink-0">
+                        <ShieldAlert size={28} />
+                    </div>
+                    <div>
+                        <p className="text-sm font-black uppercase tracking-tight">Protocolo Reprovado</p>
+                        <p className="text-[9px] font-bold opacity-60 uppercase tracking-widest mt-0.5">Encerrado sem conformidade</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-black uppercase tracking-tight">Protocolo Reprovado</p>
-                    <p className="text-[9px] font-bold opacity-60 uppercase tracking-widest mt-0.5">Encerrado sem conformidade</p>
+
+                  <div className="bg-white/60 p-5 rounded-xl border border-red-100 space-y-4">
+                    {isClient ? (
+                        <>
+                            <div className="flex items-center gap-3 text-red-800">
+                                <Mail size={16} />
+                                <p className="text-[11px] font-bold uppercase tracking-tight">Instrução ao Parceiro:</p>
+                            </div>
+                            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                                Identificamos divergências impeditivas neste lote. Por favor, entre em contato com o <b>Analista de Qualidade</b> responsável pela sua conta para alinhar as correções necessárias.
+                            </p>
+                            <div className="pt-2 border-t border-red-50">
+                                <p className="text-[9px] font-black text-slate-400 uppercase">Analista Responsável:</p>
+                                <p className="text-xs font-black text-blue-900 mt-0.5">{getAnalystName()}</p>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-3 text-slate-800">
+                                <User size={16} />
+                                <p className="text-[11px] font-bold uppercase tracking-tight">Status do Atendimento:</p>
+                            </div>
+                            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                                O processo foi encerrado como não-conforme. O parceiro foi instruído a entrar em contato com você para tratar os pontos de divergência.
+                            </p>
+                            <div className="pt-2 border-t border-slate-100">
+                                <p className="text-[9px] font-black text-slate-400 uppercase">Representante do Cliente:</p>
+                                <p className="text-xs font-black text-slate-800 mt-0.5">{getPartnerName()}</p>
+                            </div>
+                        </>
+                    )}
                   </div>
               </div>
           )}
@@ -286,6 +350,14 @@ const WaitBadge = ({ label, icon: Icon = Clock }: { label: string; icon?: any })
 
 const StepCard = ({ step, title, desc, active, completed, signature, status, children }: any) => {
   const isRejected = status === 'REJECTED';
+
+  const formatSPTime = (iso: string) => {
+    return new Intl.DateTimeFormat('pt-BR', {
+        dateStyle: 'short',
+        timeStyle: 'medium',
+        timeZone: 'America/Sao_Paulo'
+    }).format(new Date(iso));
+  };
 
   return (
     <div className={`p-6 rounded-2xl border transition-all duration-500 relative overflow-hidden group
@@ -310,9 +382,15 @@ const StepCard = ({ step, title, desc, active, completed, signature, status, chi
           <p className="text-[11px] text-slate-500 mt-0.5 font-medium leading-relaxed max-w-xl">{desc}</p>
 
           {signature && (
-            <div className="mt-4 flex items-center gap-3 text-[8px] font-black text-emerald-600 bg-emerald-50/50 border border-emerald-100 w-fit px-3 py-1.5 rounded-lg">
-                <ClipboardCheck size={12} /> 
-                <span className="uppercase tracking-widest">{signature.userName} • {new Date(signature.timestamp).toLocaleDateString()}</span>
+            <div className="mt-4 p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-1">
+                <div className="flex items-center gap-2 text-emerald-700">
+                    <ClipboardCheck size={14} />
+                    <span className="text-[10px] font-black uppercase tracking-[2px]">Autenticado Digitalmente</span>
+                </div>
+                <div className="pl-6 text-[9px] space-y-0.5">
+                    <p className="font-black text-slate-700 uppercase tracking-tight">{signature.userName} ({signature.userEmail})</p>
+                    <p className="font-bold text-slate-400 uppercase tracking-widest">Data/Hora SP: {formatSPTime(signature.timestamp)}</p>
+                </div>
             </div>
           )}
 

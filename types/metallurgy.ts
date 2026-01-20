@@ -19,6 +19,7 @@ export interface MechanicalProperties {
 export interface AuditSignature {
   userId: string;
   userName: string;
+  userEmail?: string; // Novo campo para rastreabilidade
   userRole: string;
   timestamp: ISO8601Date;
   action: string;
@@ -67,11 +68,8 @@ export interface SteelBatchMetadata {
   currentStep: number; // 1 a 7
 
   // Propriedades de Rastreabilidade e Interação
-  // Fix: Added missing viewedAt property to resolve error in InspectionSidebar.tsx
   viewedAt?: ISO8601Date;
-  // Fix: Added missing clientObservations property to resolve errors in InspectionSidebar.tsx and QualityPortfolioView.tsx
   clientObservations?: string;
-  // Fix: Added missing replacementFileId property to resolve error in useFilePreview.ts
   replacementFileId?: string;
   
   // Assinaturas de Etapas (Tracing Completo)
@@ -100,7 +98,6 @@ export interface SteelBatchMetadata {
   documentalDrawings?: string; 
   
   physicalNotes?: string;
-  // Fix: Added missing physicalFlags property to resolve error in supabaseQualityService.ts
   physicalFlags?: string[];
   physicalPhotos?: string[];
   

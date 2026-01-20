@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FileNode, FileType, UserRole } from '../../../../types/index.ts';
 import { FileRow } from './FileRow.tsx';
@@ -20,17 +19,16 @@ interface FileViewProps {
  * FileListView (Collection View)
  */
 export const FileListView: React.FC<FileViewProps> = ({ 
-  files, onNavigate, onSelectFileForPreview, selectedFileIds, onToggleFileSelection 
+  files, onNavigate, onSelectFileForPreview, selectedFileIds, onToggleFileSelection, onRename, onDelete, userRole
 }) => {
   return (
     <div className="min-w-full divide-y divide-slate-100 bg-white">
       <div className="flex items-center px-8 py-5 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-[4px] border-b border-slate-200">
-        <div className="w-10 shrink-0" />
-        <div className="flex-1 px-6">Identificador / Nome do Ativo</div>
+        <div className="flex-1">Identificador / Nome do Ativo</div>
         <div className="w-24 hidden lg:block text-right px-4">Tamanho</div>
         <div className="w-40 hidden md:block">Atualização</div>
         <div className="w-32">Status</div>
-        <div className="w-16 text-right">Selec.</div>
+        <div className="w-16 text-right">Ações</div>
       </div>
       {files.map((file) => (
         <FileRow 
@@ -40,6 +38,9 @@ export const FileListView: React.FC<FileViewProps> = ({
           onNavigate={onNavigate}
           onPreview={onSelectFileForPreview}
           onToggleSelection={onToggleFileSelection}
+          onRename={onRename}
+          onDelete={onDelete}
+          userRole={userRole}
         />
       ))}
     </div>
@@ -50,10 +51,11 @@ export const FileListView: React.FC<FileViewProps> = ({
  * FileGridView (Collection View)
  */
 export const FileGridView: React.FC<FileViewProps> = ({ 
-  files, onNavigate, onSelectFileForPreview, selectedFileIds, onToggleFileSelection 
+  files, onNavigate, onSelectFileForPreview, selectedFileIds, onToggleFileSelection, onRename, onDelete, userRole
 }) => {
+  // A GridView renderiza os FileCards diretamente. O FileExplorer usa este componente.
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 gap-6 p-8">
+    <>
       {files.map((file) => (
         <FileCard 
           key={file.id}
@@ -62,8 +64,11 @@ export const FileGridView: React.FC<FileViewProps> = ({
           onNavigate={onNavigate}
           onPreview={onSelectFileForPreview}
           onToggleSelection={onToggleFileSelection}
+          onRename={onRename}
+          onDelete={onDelete}
+          userRole={userRole}
         />
       ))}
-    </div>
+    </>
   );
 };

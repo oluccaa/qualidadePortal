@@ -1,7 +1,6 @@
-
 import React from 'react';
-import { Folder, FileText, CheckSquare, Square, Clock, HardDrive, Eye } from 'lucide-react';
-import { FileNode, FileType } from '../../../../types/index.ts';
+import { CheckSquare, Square, Clock, HardDrive, Eye, Edit2, Trash2 } from 'lucide-react';
+import { FileNode, FileType, UserRole } from '../../../../types/index.ts';
 import { FileStatusBadge } from './FileStatusBadge.tsx';
 
 interface FileRowProps {
@@ -10,27 +9,27 @@ interface FileRowProps {
   onNavigate: (id: string | null) => void;
   onPreview: (file: FileNode) => void;
   onToggleSelection: (fileId: string) => void;
+  onRename: (file: FileNode) => void;
+  onDelete: (fileId: string) => void;
+  userRole: UserRole;
 }
 
-export const FileRow: React.FC<FileRowProps> = ({ file, isSelected, onNavigate, onPreview, onToggleSelection }) => {
+export const FileRow: React.FC<FileRowProps> = ({ 
+  file, isSelected, onNavigate, onPreview, onToggleSelection, onRename, onDelete, userRole 
+}) => {
   const isFolder = file.type === FileType.FOLDER;
   const isViewed = !!file.metadata?.viewedAt;
+  const isClient = userRole === UserRole.CLIENT;
+  const isRootFolder = isFolder && file.parentId === null;
   
   return (
     <div 
-      className={`group flex items-center px-8 py-3 hover:bg-slate-50 transition-all cursor-pointer relative border-b border-slate-100 last:border-0
+      className={`group flex items-center px-8 py-4 hover:bg-slate-50 transition-all cursor-pointer relative border-b border-slate-100 last:border-0
         ${isSelected ? 'bg-[#132659]/5' : ''}`}
       onClick={() => isFolder ? onNavigate(file.id) : onPreview(file)}
       title={isFolder ? "Explorar Pasta" : "Abrir Certificado"}
     >
-      <div className="w-10 shrink-0">
-         <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all border
-           ${isFolder ? 'bg-[#132659]/5 border-[#132659]/10 text-[#132659]' : 'bg-white border-slate-200 text-slate-400 group-hover:text-[#132659]'}`}>
-           {isFolder ? <Folder size={16} fill={isSelected ? "currentColor" : "none"} className="opacity-80" /> : <FileText size={16} />}
-         </div>
-      </div>
-      
-      <div className="flex-1 min-w-0 px-6">
+      <div className="flex-1 min-w-0">
         <div className="flex items-center gap-3">
           <span className={`text-[13px] tracking-tight uppercase transition-colors ${isSelected || isFolder ? 'font-bold text-slate-900' : 'font-medium text-slate-600 group-hover:text-slate-900'}`}>
             {file.name}
@@ -64,20 +63,40 @@ export const FileRow: React.FC<FileRowProps> = ({ file, isSelected, onNavigate, 
         {!isFolder ? (
             <FileStatusBadge status={file.metadata?.status} />
         ) : (
-            <div className="flex items-center gap-1.5 text-slate-300">
+            <div className="flex items-center gap-1.5 text-slate-200">
                <HardDrive size={12} />
                <span className="text-[8px] font-black uppercase tracking-widest">Dossier</span>
             </div>
         )}
       </div>
 
-      <div className="w-16 flex items-center justify-end">
-         <button 
-            onClick={(e) => { e.stopPropagation(); onToggleSelection(file.id); }}
-            className={`p-2 rounded-lg transition-all ${isSelected ? 'text-[#132659]' : 'text-slate-200 hover:text-slate-400 opacity-0 group-hover:opacity-100'}`}
-         >
-            {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
-         </button>
+      <div className="flex items-center gap-1 px-2">
+        {!isClient && (
+          <div className="flex items-center gap-1">
+            <button 
+              onClick={(e) => { e.stopPropagation(); onRename(file); }}
+              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+              title="Renomear"
+            >
+              <Edit2 size={16} />
+            </button>
+            {!isRootFolder && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); onDelete(file.id); }}
+                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                title="Excluir"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+          </div>
+        )}
+        <button 
+          onClick={(e) => { e.stopPropagation(); onToggleSelection(file.id); }}
+          className={`p-2 rounded-lg transition-all ${isSelected ? 'text-[#132659]' : 'text-slate-200 hover:text-slate-400 group-hover:opacity-100'}`}
+        >
+          {isSelected ? <CheckSquare size={22} /> : <Square size={22} />}
+        </button>
       </div>
     </div>
   );

@@ -1,7 +1,6 @@
-
 import React from 'react';
-import { Folder, FileText, CheckSquare, Square, ChevronRight, Clock, Eye } from 'lucide-react';
-import { FileNode, FileType } from '../../../../types/index.ts';
+import { CheckSquare, Square, Clock, Eye, Edit2, Trash2, FileText, Folder } from 'lucide-react';
+import { FileNode, FileType, UserRole } from '../../../../types/index.ts';
 import { FileStatusBadge } from './FileStatusBadge.tsx';
 
 interface FileCardProps {
@@ -10,97 +9,114 @@ interface FileCardProps {
   onNavigate: (id: string | null) => void;
   onPreview: (file: FileNode) => void;
   onToggleSelection: (fileId: string) => void;
+  onRename: (file: FileNode) => void;
+  onDelete: (fileId: string) => void;
+  userRole: UserRole;
 }
 
-export const FileCard: React.FC<FileCardProps> = ({ file, isSelected, onNavigate, onPreview, onToggleSelection }) => {
+export const FileCard: React.FC<FileCardProps> = ({ 
+  file, isSelected, onNavigate, onPreview, onToggleSelection, onRename, onDelete, userRole 
+}) => {
   const isFolder = file.type === FileType.FOLDER;
   const isViewed = !!file.metadata?.viewedAt;
+  const isClient = userRole === UserRole.CLIENT;
+  const isRootFolder = isFolder && file.parentId === null;
+
+  const handleMainClick = () => {
+    if (isFolder) onNavigate(file.id);
+    else onPreview(file);
+  };
 
   return (
     <div 
-      className="group relative h-56 flex flex-col cursor-pointer"
-      onClick={() => isFolder ? onNavigate(file.id) : onPreview(file)}
+      className={`group relative flex flex-col bg-white border transition-all duration-300 rounded-2xl overflow-hidden cursor-pointer
+        ${isSelected 
+          ? 'border-blue-600 ring-4 ring-blue-600/5 shadow-lg' 
+          : 'border-slate-200 hover:border-blue-400 hover:shadow-md'}`}
+      onClick={handleMainClick}
     >
-      {/* Tooltip Nativo */}
-      <div className="absolute inset-0 z-20 cursor-pointer" title={isFolder ? `Explorar Dossier: ${file.name}` : `Visualizar Laudo: ${file.name}`} />
-
-      {/* SILLUETE DE PASTA (Apenas para Folders) */}
-      {isFolder && (
-        <div className="absolute inset-0 flex flex-col">
-          {/* Aba da Pasta */}
-          <div className={`w-16 h-4 rounded-t-lg transition-colors duration-300 ${isSelected ? 'bg-[#132659]' : 'bg-slate-200 group-hover:bg-[#132659]/40'}`} />
-          {/* Corpo da Pasta */}
-          <div className={`flex-1 rounded-r-2xl rounded-bl-2xl border-t-2 transition-all duration-300 shadow-sm
-            ${isSelected 
-              ? 'bg-blue-50/50 border-[#132659] shadow-md' 
-              : 'bg-white border-slate-200 group-hover:border-[#132659]/50 group-hover:shadow-lg'}`} 
-          />
-        </div>
-      )}
-
-      {/* CARD DE ARQUIVO (Visual Plano Minimalista) */}
-      {!isFolder && (
-        <div className={`absolute inset-0 rounded-2xl border transition-all duration-300
-          ${isSelected 
-            ? 'bg-blue-50/30 border-[#132659] shadow-md' 
-            : 'bg-white border-slate-200 hover:border-[#132659] shadow-sm hover:shadow-lg'}`} 
-        />
-      )}
-
-      {/* CONTEÚDO DO CARD */}
-      <div className="relative z-10 flex flex-col h-full p-5">
-        <div className="flex items-start justify-between mb-4">
-          <div className={`w-11 h-11 flex items-center justify-center rounded-xl transition-all duration-500
-             ${isFolder 
-                ? (isSelected ? 'bg-[#132659] text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-[#132659]/10 group-hover:text-[#132659]') 
-                : 'bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-[#132659] border border-slate-100'}`}>
-            {isFolder ? <Folder size={20} fill={isSelected ? "currentColor" : "none"} /> : <FileText size={20} />}
-          </div>
-          
-          <div className="flex items-center gap-2">
+      {/* 1. ZONA DE AÇÕES (TOPO) */}
+      <div className="flex items-center justify-between p-3 shrink-0">
+        <div className="flex items-center gap-2">
+            {isFolder ? (
+                <Folder size={16} className={isSelected ? 'text-blue-600' : 'text-slate-400'} />
+            ) : (
+                <FileText size={16} className={isSelected ? 'text-blue-600' : 'text-slate-400'} />
+            )}
             {isViewed && !isFolder && (
-                <div className="bg-blue-500 text-white p-1.5 rounded-lg shadow-sm animate-in zoom-in" title="Visto pelo cliente">
-                    <Eye size={12} strokeWidth={3} />
+                <div className="flex items-center text-blue-500" title="Visto pelo cliente">
+                    <Eye size={14} strokeWidth={2.5} />
                 </div>
             )}
-            <button 
-                className={`p-2 rounded-lg transition-all z-30
-                ${isSelected ? 'text-[#132659]' : 'text-slate-200 hover:text-[#132659]'}`}
-                onClick={(e) => {
-                e.stopPropagation();
-                onToggleSelection(file.id);
-                }}
-                title={isSelected ? "Desmarcar" : "Selecionar"}
-            >
-                {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
-            </button>
-          </div>
         </div>
 
-        <div className="flex-1 flex flex-col">
-          <h4 className="text-[13px] font-bold text-slate-800 leading-tight uppercase tracking-tight mb-1 line-clamp-2 group-hover:text-[#132659] transition-colors">
-            {file.name}
-          </h4>
+        <div className="flex items-center gap-1">
+          {!isClient && (
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button 
+                onClick={(e) => { e.stopPropagation(); onRename(file); }}
+                className="p-1.5 bg-slate-50 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-lg transition-colors border border-transparent hover:border-blue-100"
+                title="Renomear"
+              >
+                <Edit2 size={12} />
+              </button>
+              {!isRootFolder && (
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onDelete(file.id); }}
+                  className="p-1.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                  title="Apagar"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
+          )}
           
-          <div className="flex items-center gap-1.5 mt-auto">
-             <Clock size={10} className="text-slate-300" />
-             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-               {new Date(file.updatedAt).toLocaleDateString()}
-             </span>
-          </div>
-          
-          <div className="mt-4 flex items-center justify-between border-t border-slate-50 pt-3">
-             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-mono">
-                {isFolder ? 'Dossier' : file.size || 'PDF'}
-             </span>
-             {!isFolder && <FileStatusBadge status={file.metadata?.status} />}
-             {isFolder && (
-                <div className="flex items-center gap-1 text-[#132659] font-black text-[8px] uppercase tracking-[2px] group-hover:translate-x-1 transition-transform">
-                   Abrir <ChevronRight size={10} />
-                </div>
-             )}
-          </div>
+          <button 
+              className={`p-1.5 rounded-lg transition-all
+              ${isSelected ? 'text-blue-600 bg-blue-50' : 'text-slate-300 hover:text-blue-500'}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleSelection(file.id);
+              }}
+          >
+              {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
+          </button>
         </div>
+      </div>
+
+      {/* 2. ZONA DE IDENTIFICAÇÃO (CENTRO) */}
+      <div className="px-5 py-2 flex-1">
+        <h4 className={`text-[13px] font-bold leading-snug uppercase tracking-tight line-clamp-3 transition-colors mb-3
+          ${isSelected ? 'text-blue-900' : 'text-slate-800'}`}>
+          {file.name}
+        </h4>
+        
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex items-center gap-1.5">
+                <Clock size={12} className="text-slate-300" />
+                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                  {new Date(file.updatedAt).toLocaleDateString()}
+                </span>
+            </div>
+            {!isFolder && file.metadata?.batchNumber && (
+                <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200 uppercase tracking-tighter">
+                   Lote: {file.metadata.batchNumber}
+                </span>
+            )}
+        </div>
+      </div>
+
+      {/* 3. ZONA DE STATUS (RODAPÉ) */}
+      <div className={`mt-4 px-5 py-3 border-t flex items-center justify-between bg-slate-50/50 
+        ${isSelected ? 'border-blue-100 bg-blue-50/30' : 'border-slate-50'}`}>
+         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-mono">
+            {isFolder ? 'Pasta' : file.size || 'PDF'}
+         </span>
+         
+         <div className="shrink-0">
+            {!isFolder && <FileStatusBadge status={file.metadata?.status} />}
+         </div>
       </div>
     </div>
   );

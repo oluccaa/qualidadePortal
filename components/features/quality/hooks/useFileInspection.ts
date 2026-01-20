@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../context/authContext.tsx';
@@ -13,7 +12,7 @@ export const useFileInspection = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
 
-  const [inspectorFile, setInspectorFile] = useState<FileNode | null>(null);
+  const [inspectorFile, setInspectorFile] = useState<any | null>(null);
   const [loadingFile, setLoadingFile] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [mainPreviewUrl, setMainPreviewUrl] = useState<string | null>(null);
@@ -23,8 +22,19 @@ export const useFileInspection = () => {
     if (!user || !fileId) return;
     setLoadingFile(true);
     try {
-      const { data, error } = await supabase.from('files').select('*').eq('id', fileId).single();
-      if (error || !data) throw new Error("Não localizado");
+      // Query robusta utilizando o mapeamento explícito da coluna owner_id
+      const { data, error } = await supabase
+        .from('files')
+        .select('*, organizations:owner_id(name)')
+        .eq('id', fileId)
+        .maybeSingle();
+        
+      if (error) {
+          console.error("[Quality Sync Error] Database failure:", error);
+          throw error;
+      }
+
+      if (!data) throw new Error("Ativo não localizado no Ledger.");
 
       const file = {
         ...data,
@@ -33,12 +43,22 @@ export const useFileInspection = () => {
         updatedAt: data.updated_at,
         storagePath: data.storage_path,
         metadata: data.metadata 
-      } as FileNode;
+      };
 
       setInspectorFile(file);
-      const url = await fileService.getSignedUrl(file.storagePath);
-      setMainPreviewUrl(url);
-    } catch (err) {
+
+      // Sincroniza a URL do laudo original
+      if (file.storagePath && file.storagePath !== 'system/folder') {
+          try {
+              const url = await fileService.getSignedUrl(file.storagePath);
+              setMainPreviewUrl(url);
+          } catch (urlErr) {
+              console.warn("[Quality Sync] Could not sign asset URL:", urlErr);
+          }
+      }
+      
+    } catch (err: any) {
+      console.error("[Quality Sync Critical] Redirecting due to:", err);
       showToast("Falha na sincronização técnica.", 'error');
       navigate(-1);
     } finally {

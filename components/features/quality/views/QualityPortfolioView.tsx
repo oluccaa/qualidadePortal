@@ -1,11 +1,10 @@
-
 import React from 'react';
 import { useQualityPortfolio } from '../hooks/useQualityPortfolio.ts';
 import { 
   ArrowRight, AlertCircle, 
   MessageSquare, ShieldCheck, Clock 
 } from 'lucide-react';
-import { PageLoader } from '../../../common/PageLoader.tsx';
+import { QualityLoadingState } from '../components/ViewStates.tsx';
 import { useNavigate } from 'react-router-dom';
 import { QualityStatus } from '../../../../types/index.ts';
 
@@ -13,7 +12,7 @@ export const QualityPortfolioView: React.FC = () => {
   const navigate = useNavigate();
   const { pendingFiles, rejectedFiles, isLoading } = useQualityPortfolio();
   
-  if (isLoading) return <PageLoader message="Sincronizando Backlog Técnico..." />;
+  if (isLoading) return <QualityLoadingState message="Sincronizando Backlog Técnico..." />;
 
   return (
     <div className="space-y-12 animate-in fade-in duration-700 pb-10">
