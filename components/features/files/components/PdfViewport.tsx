@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
@@ -25,25 +24,42 @@ export const PdfViewport: React.FC<PdfViewportProps> = ({
   const [isRendering, setIsRendering] = useState(false);
   
   const currentRenderTaskRef = useRef<any>(null);
+  const currentDocTaskRef = useRef<any>(null);
 
-  // Carrega o documento apenas quando a URL muda
+  // Carrega o documento
   useEffect(() => {
     if (!url) return;
+    
+    // Cancela carregamento anterior se existir
+    if (currentDocTaskRef.current) {
+        currentDocTaskRef.current.destroy();
+    }
+
     const loadingTask = (window as any).pdfjsLib.getDocument(url);
+    currentDocTaskRef.current = loadingTask;
+
     loadingTask.promise.then((pdf: any) => {
       setPdfDoc(pdf);
       onPdfLoad(pdf.numPages);
     }).catch((err: any) => {
-      console.error("Erro ao carregar PDF:", err);
+      if (err.name !== 'WorkerAbandonedException' && err.name !== 'AbortException') {
+        console.error("Erro ao carregar PDF:", err);
+      }
     });
-    return () => currentRenderTaskRef.current?.cancel();
-  }, [url]);
 
-  // Renderiza a página quando documento, página ou zoom mudam
+    return () => {
+        if (currentDocTaskRef.current) {
+            currentDocTaskRef.current.destroy();
+        }
+    };
+  }, [url, onPdfLoad]);
+
+  // Renderiza a página
   useEffect(() => {
     if (!pdfDoc || !canvasRef.current) return;
     
     const render = async () => {
+      // Cancela renderização em curso
       if (currentRenderTaskRef.current) {
         currentRenderTaskRef.current.cancel();
       }
@@ -53,9 +69,8 @@ export const PdfViewport: React.FC<PdfViewportProps> = ({
         const page = await pdfDoc.getPage(pageNum);
         const viewport = page.getViewport({ scale: zoom * 2 });
         const canvas = canvasRef.current!;
-        const context = canvas.getContext('2d')!;
+        const context = canvas.getContext('2d', { alpha: false })!;
 
-        // Ajusta tamanho sem limpar visualmente de imediato (browser buffer)
         canvas.height = viewport.height;
         canvas.width = viewport.width;
         
@@ -63,9 +78,10 @@ export const PdfViewport: React.FC<PdfViewportProps> = ({
 
         const renderTask = page.render({ canvasContext: context, viewport });
         currentRenderTaskRef.current = renderTask;
+        
         await renderTask.promise;
         setIsRendering(false);
-      } catch (e) {
+      } catch (e: any) {
         if (e.name !== 'RenderingCancelledException') {
           console.error("Render error:", e);
           setIsRendering(false);
@@ -74,16 +90,22 @@ export const PdfViewport: React.FC<PdfViewportProps> = ({
     };
 
     render();
+
+    return () => {
+        if (currentRenderTaskRef.current) {
+            currentRenderTaskRef.current.cancel();
+        }
+    };
   }, [pdfDoc, pageNum, zoom]);
 
   return (
     <div className="flex-1 overflow-auto custom-scrollbar flex justify-center p-8 bg-[#020617] relative">
         <div 
           className={`relative shadow-[0_50px_100px_rgba(0,0,0,0.5)] bg-white transition-opacity duration-200 ${isRendering ? 'opacity-90' : 'opacity-100'}`}
-          style={{ width: canvasSize.w, height: canvasSize.h, minWidth: canvasSize.w }}
+          style={{ width: canvasSize.w, height: canvasSize.h, minWidth: canvasSize.w || '100px' }}
         >
             <canvas ref={canvasRef} className="block w-full h-auto" />
-            {renderOverlay && renderOverlay(canvasSize.w, canvasSize.h)}
+            {renderOverlay && canvasSize.w > 0 && renderOverlay(canvasSize.w, canvasSize.h)}
         </div>
 
         {!pdfDoc && (

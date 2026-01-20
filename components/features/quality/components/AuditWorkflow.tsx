@@ -67,35 +67,40 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
       let nextStep = currentStep;
       let nextGlobalStatus = metadata?.status || QualityStatus.PENDING;
 
-      switch(step) {
-        case 1: 
-          if (status === 'APPROVED') {
-            nextStep = 2;
-            nextGlobalStatus = QualityStatus.SENT;
-          }
-          break;
-        case 2: 
-          if (status === 'APPROVED') nextStep = 3; 
-          else nextStep = 4;
-          break;
-        case 3: 
-          if (status === 'APPROVED') nextStep = 6; 
-          else nextStep = 4;
-          break;
-        case 4: 
-          nextStep = 5;
-          break;
-        case 5: 
-          if (status === 'APPROVED') nextStep = 6;
-          else {
-            nextGlobalStatus = QualityStatus.REJECTED;
-            nextStep = 7; 
-          }
-          break;
-        case 6: 
-          nextStep = 7;
-          nextGlobalStatus = QualityStatus.APPROVED;
-          break;
+      if (step === 1) {
+        if (status === 'APPROVED') {
+          nextStep = 2; // Entra na fase de conferência (Passos 2 e 3 paralelos)
+          nextGlobalStatus = QualityStatus.SENT;
+        }
+      } else if (step === 2 || step === 3) {
+        // Lógica de Independência: Verifica se ambos foram concluídos
+        const isDocCompleted = step === 2 || !!metadata?.signatures?.step2_documental;
+        const isPhysCompleted = step === 3 || !!metadata?.signatures?.step3_physical;
+        
+        // Verifica se há rejeição em qualquer um dos passos (o atual ou o já gravado)
+        const hasRejection = (step === 2 && status === 'REJECTED') || 
+                           (step === 3 && status === 'REJECTED') ||
+                           metadata?.documentalStatus === 'REJECTED' ||
+                           metadata?.physicalStatus === 'REJECTED';
+
+        if (isDocCompleted && isPhysCompleted) {
+          // Se ambos terminaram, decide se vai para Arbitragem (4) ou Consolidação (6)
+          nextStep = hasRejection ? 4 : 6;
+        } else {
+          // Mantém no step 2 (fase de conferência) até o outro ser assinado
+          nextStep = 2;
+        }
+      } else if (step === 4) {
+        nextStep = 5;
+      } else if (step === 5) {
+        if (status === 'APPROVED') nextStep = 6;
+        else {
+          nextGlobalStatus = QualityStatus.REJECTED;
+          nextStep = 7; 
+        }
+      } else if (step === 6) {
+        nextStep = 7;
+        nextGlobalStatus = QualityStatus.APPROVED;
       }
 
       const newSignatures = { 
@@ -158,16 +163,17 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
           {isClient && currentStep === 1 && <WaitBadge label="Aguardando Triagem Vital" />}
         </StepCard>
 
+        {/* PASSO 2 E 3 AGORA SÃO PARALELOS NA FASE (currentStep === 2) */}
         <StepCard 
           step={2} 
           title="2. Conferência de Dados" 
           desc="Validação das propriedades técnicas e dimensionais do aço."
-          active={currentStep === 2}
-          completed={currentStep > 2 && !!metadata?.documentalStatus}
+          active={currentStep === 2 && !metadata?.signatures?.step2_documental}
+          completed={!!metadata?.signatures?.step2_documental}
           status={metadata?.documentalStatus}
           signature={metadata?.signatures?.step2_documental}
         >
-          {isClient && currentStep === 2 && (
+          {isClient && currentStep === 2 && !metadata?.signatures?.step2_documental && (
             <div className="space-y-3 animate-in slide-in-from-bottom-2">
                <div className="flex gap-3">
                     <button onClick={() => handleAction(2, 'APPROVED', { documentalStatus: 'APPROVED' })} className="flex-1 px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 active:scale-95 transition-all shadow-md">Aprovar Dados</button>
@@ -176,19 +182,19 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                <SignaturePreviewSeal />
             </div>
           )}
-          {isAnalyst && currentStep === 2 && <WaitBadge label="Aguardando Conferência Documental" />}
+          {isAnalyst && currentStep === 2 && !metadata?.signatures?.step2_documental && <WaitBadge label="Aguardando Conferência Documental" />}
         </StepCard>
 
         <StepCard 
           step={3} 
           title="3. Vistoria de Carga" 
           desc="Inspeção física do material e etiquetas no recebimento."
-          active={currentStep === 3}
-          completed={currentStep > 3 && !!metadata?.physicalStatus}
+          active={currentStep === 2 && !metadata?.signatures?.step3_physical}
+          completed={!!metadata?.signatures?.step3_physical}
           status={metadata?.physicalStatus}
           signature={metadata?.signatures?.step3_physical}
         >
-          {isClient && currentStep === 3 && (
+          {isClient && currentStep === 2 && !metadata?.signatures?.step3_physical && (
             <div className="space-y-3 animate-in slide-in-from-bottom-2">
                <div className="flex gap-3">
                     <button onClick={() => handleAction(3, 'APPROVED', { physicalStatus: 'APPROVED' })} className="flex-1 px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-md">Carga OK</button>
@@ -197,7 +203,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                <SignaturePreviewSeal />
             </div>
           )}
-          {isAnalyst && currentStep === 3 && <WaitBadge label="Aguardando Vistoria de Carga" />}
+          {isAnalyst && currentStep === 2 && !metadata?.signatures?.step3_physical && <WaitBadge label="Aguardando Vistoria de Carga" />}
         </StepCard>
 
         <StepCard 

@@ -40,7 +40,7 @@ export const QualityOverviewCards: React.FC<QualityOverviewCardsProps> = ({
       shadow: "shadow-slate-900/5",
       path: '/quality/portfolio',
       accent: "text-blue-400",
-      tooltip: "Total de empresas sob sua responsabilidade técnica."
+      tooltip: "Gestão completa da base de parceiros"
     },
     {
       id: 'pending',
@@ -52,7 +52,7 @@ export const QualityOverviewCards: React.FC<QualityOverviewCardsProps> = ({
       shadow: "shadow-[#b23c0e]/10",
       path: '/quality/monitor',
       accent: "text-white",
-      tooltip: "Documentos novos que precisam de auditoria imediata."
+      tooltip: "Documentos prioritários para análise"
     },
     {
       id: 'compliance',
@@ -64,7 +64,7 @@ export const QualityOverviewCards: React.FC<QualityOverviewCardsProps> = ({
       shadow: "shadow-emerald-500/10",
       path: '/quality/audit',
       accent: "text-white",
-      tooltip: "Percentual de laudos aprovados sem contestação."
+      tooltip: "Nível de assertividade da operação"
     },
     {
       id: 'alerts',
@@ -76,7 +76,7 @@ export const QualityOverviewCards: React.FC<QualityOverviewCardsProps> = ({
       shadow: "shadow-slate-500/5",
       path: '/quality/monitor',
       accent: "text-white",
-      tooltip: "Certificados recusados pelo parceiro aguardando revisão."
+      tooltip: "Certificados com feedback negativo"
     }
   ], [totalClients, totalPendingDocs, complianceRate, totalRejected]);
 
@@ -100,19 +100,17 @@ const KpiCard: React.FC<{ card: KpiConfig; onClick: () => void }> = ({ card, onC
             onClick={onClick}
             className="group bg-white p-6 rounded-[1.5rem] border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all text-left flex flex-col justify-between min-h-[160px] relative overflow-visible"
         >
-            {/* Tooltip Estilizado */}
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-[100] whitespace-normal text-center w-40 shadow-2xl">
+            {/* Tooltip Premium */}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-4 py-2.5 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[1.5px] rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 scale-95 group-hover:scale-100 z-[100] whitespace-nowrap shadow-2xl border border-white/10">
                 {card.tooltip}
-                <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900" />
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900/90" />
             </div>
 
-            <div className="absolute top-0 right-0 w-20 h-20 bg-slate-50 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:bg-slate-100 transition-colors" />
-            
             <div className="flex justify-between items-start mb-4 relative z-10">
               <div className={`p-2.5 rounded-xl ${card.color} text-white shadow-lg ${card.shadow} group-hover:scale-110 transition-transform`}>
                 <Icon size={18} className={card.accent} />
               </div>
-              <ArrowUpRight size={16} className="text-slate-200 group-hover:text-[#b23c0e] transition-colors" />
+              <ArrowUpRight size={16} className="text-slate-200 group-hover:text-blue-600 transition-colors" />
             </div>
 
             <div className="relative z-10">

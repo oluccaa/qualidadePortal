@@ -27,10 +27,10 @@ export const PartnerDashboardView: React.FC = () => {
         <div className={`p-6 rounded-[2.5rem] border shadow-xl flex flex-col justify-between transition-all relative overflow-visible group ${
           hasPending ? 'bg-orange-600 border-orange-500 text-white' : 'bg-white border-slate-200'
         }`}>
-          {/* Tooltip */}
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-50 whitespace-normal text-center w-48 shadow-2xl">
-              Certificados que aguardam seu aceite ou contestação técnica.
-              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900" />
+          {/* Tooltip Premium */}
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-4 py-2.5 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[1.5px] rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 scale-95 group-hover:scale-100 z-50 whitespace-normal text-center w-52 shadow-2xl border border-white/10">
+              Ações requeridas para validação de lotes recebidos
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900/90" />
           </div>
 
           <div className="relative z-10">
@@ -53,17 +53,17 @@ export const PartnerDashboardView: React.FC = () => {
             </div>
           </div>
           {hasPending && (
-              <div className="absolute -right-4 -bottom-4 opacity-10 rotate-12">
+              <div className="absolute -right-4 -bottom-4 opacity-10 rotate-12 pointer-events-none">
                   <FileWarning size={120} />
               </div>
           )}
         </div>
 
         <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col justify-between group relative overflow-visible">
-          {/* Tooltip */}
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-50 whitespace-normal text-center w-48 shadow-2xl">
-              Documentos com conformidade validada por ambas as partes.
-              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900" />
+          {/* Tooltip Premium */}
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-4 py-2.5 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[1.5px] rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 scale-95 group-hover:scale-100 z-50 whitespace-normal text-center w-52 shadow-2xl border border-white/10">
+              Total de ativos com conformidade aprovada
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900/90" />
           </div>
 
           <div className="flex items-center gap-4 mb-4">
@@ -82,10 +82,10 @@ export const PartnerDashboardView: React.FC = () => {
         </div>
 
         <div className="bg-[#132659] p-6 rounded-[2.5rem] text-white flex flex-col justify-between shadow-2xl relative overflow-visible group">
-          {/* Tooltip */}
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-50 whitespace-normal text-center w-48 shadow-2xl">
-              Data da última sincronização automática com o servidor Vital.
-              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900" />
+          {/* Tooltip Premium */}
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-4 py-2.5 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[1.5px] rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 scale-95 group-hover:scale-100 z-50 whitespace-normal text-center w-52 shadow-2xl border border-white/10">
+              Sincronização de dados com o Core Industrial
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900/90" />
           </div>
 
           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl" />

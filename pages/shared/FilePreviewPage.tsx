@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -46,7 +45,7 @@ const FilePreviewPage: React.FC = () => {
     isSyncing
   } = useFilePreview(user, initialFileStub);
 
-  // Carrega as anotações iniciais vindas do banco de dados (se houver)
+  // Carrega as anotações iniciais vindas do banco de dados
   useEffect(() => {
     if (currentFile?.metadata?.documentalDrawings) {
       try {
@@ -85,23 +84,22 @@ const FilePreviewPage: React.FC = () => {
   };
 
   const role = normalizeRole(user?.role);
-  // O botão de auditoria agora aparece para analistas, administradores e clientes.
   const canAudit = role === UserRole.QUALITY || role === UserRole.ADMIN || role === UserRole.CLIENT;
 
   return (
     <div className="h-screen w-screen bg-[#020617] flex flex-col overflow-hidden font-sans">
-      {/* Header */}
+      {/* Header - Sempre visível */}
       <header className="h-16 flex items-center justify-between px-6 bg-[#081437]/90 backdrop-blur-xl border-b border-white/5 z-20">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => navigate(-1)}
-            className="p-2 text-slate-400 hover:text-white transition-all bg-white/5 rounded-xl border border-white/10"
+            className="p-2 text-slate-400 hover:text-white transition-all bg-white/5 rounded-xl border border-white/10 active:scale-95"
           >
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h2 className="text-white text-xs font-black uppercase tracking-widest truncate max-w-xs">
-              {currentFile?.name || "Carregando Ativo..."}
+            <h2 className="text-white text-xs font-black uppercase tracking-widest truncate max-w-xs md:max-w-md">
+              {currentFile?.name || "Sincronizando Ativo..."}
             </h2>
           </div>
         </div>
@@ -109,25 +107,27 @@ const FilePreviewPage: React.FC = () => {
         <div className="flex items-center gap-4">
             <button 
                 onClick={handleSaveAll}
-                disabled={isSyncing}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all disabled:opacity-50"
+                disabled={isSyncing || !url}
+                className="hidden sm:flex px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest items-center gap-2 transition-all disabled:opacity-50"
             >
                 {isSyncing ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                 Persistir Alterações
             </button>
             <button 
               onClick={handleDownload}
-              className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10 flex items-center gap-2 transition-all"
+              disabled={!url}
+              className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10 flex items-center gap-2 transition-all disabled:opacity-30"
             >
-              <Download size={14} /> Exportar Original
+              <Download size={14} /> <span className="hidden md:inline">Exportar Original</span>
             </button>
         </div>
       </header>
 
-      {/* Viewport */}
-      <div className="flex-1 relative overflow-hidden">
+      {/* Viewport Area */}
+      <div className="flex-1 relative overflow-hidden bg-[#020617]">
         {url ? (
           <PdfViewport 
+            key={`${fileId}-${url}`}
             url={url} 
             pageNum={pageNum} 
             zoom={zoom} 
@@ -146,20 +146,20 @@ const FilePreviewPage: React.FC = () => {
             )}
           />
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-4 bg-[#020617]">
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-4">
              <Loader2 size={40} className="animate-spin text-blue-500" />
-             <p className="text-[10px] font-black uppercase tracking-[4px]">Autenticando Ledger...</p>
+             <p className="text-[10px] font-black uppercase tracking-[4px] animate-pulse">Autenticando Ledger B2B...</p>
           </div>
         )}
       </div>
 
-      {/* BARRA DE FERRAMENTAS PRINCIPAL */}
+      {/* BARRA DE FERRAMENTAS */}
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 bg-[#081437]/95 backdrop-blur-3xl border border-white/10 p-2 rounded-[2.5rem] shadow-[0_40px_80px_rgba(0,0,0,0.7)] animate-in slide-in-from-bottom-10 duration-700">
         
         {/* Paginação */}
         <div className="flex items-center gap-3 bg-white/5 p-1 rounded-full border border-white/10 px-4">
           <button 
-            disabled={pageNum <= 1}
+            disabled={pageNum <= 1 || !url}
             onClick={() => setPageNum(pageNum - 1)}
             className="p-2 text-slate-400 hover:text-white disabled:opacity-20"
           >
@@ -169,7 +169,7 @@ const FilePreviewPage: React.FC = () => {
             {pageNum} / {numPages || '--'}
           </span>
           <button 
-            disabled={pageNum >= numPages}
+            disabled={pageNum >= numPages || !url}
             onClick={() => setPageNum(pageNum + 1)}
             className="p-2 text-slate-400 hover:text-white disabled:opacity-20"
           >
@@ -210,8 +210,9 @@ const FilePreviewPage: React.FC = () => {
               </div>
             )}
             <button 
+              disabled={!url}
               onClick={() => setShowMoreMenu(!showMoreMenu)}
-              className={`p-3.5 rounded-full transition-all flex items-center justify-center ${showMoreMenu ? 'bg-white text-[#081437]' : 'bg-white/10 text-slate-400 hover:bg-white/20'}`}
+              className={`p-3.5 rounded-full transition-all flex items-center justify-center disabled:opacity-20 ${showMoreMenu ? 'bg-white text-[#081437]' : 'bg-white/10 text-slate-400 hover:bg-white/20'}`}
             >
               <Plus size={20} className={`transition-transform duration-300 ${showMoreMenu ? 'rotate-45' : 'rotate-0'}`} />
             </button>
@@ -222,21 +223,22 @@ const FilePreviewPage: React.FC = () => {
             active={false} 
             onClick={handleUndo} 
             label="Desfazer" 
-            disabled={(annotations[pageNum] || []).length === 0}
+            disabled={(annotations[pageNum] || []).length === 0 || !url}
           />
         </div>
 
         {/* Zoom */}
         <div className="flex items-center gap-1 pr-2 border-r border-white/10">
-          <ToolButton icon={ZoomOut} onClick={() => setZoom(Math.max(0.5, zoom - 0.2))} label="Zoom Out" />
-          <ToolButton icon={ZoomIn} onClick={() => setZoom(Math.min(3, zoom + 0.2))} label="Zoom In" />
+          <ToolButton icon={ZoomOut} onClick={() => setZoom(Math.max(0.5, zoom - 0.2))} label="Zoom Out" disabled={!url} />
+          <ToolButton icon={ZoomIn} onClick={() => setZoom(Math.min(3, zoom + 0.2))} label="Zoom In" disabled={!url} />
         </div>
 
         {/* Iniciar Auditoria */}
         {canAudit && (
           <button 
             onClick={() => navigate(`/quality/inspection/${fileId}`)}
-            className="ml-2 px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-full font-black text-[10px] uppercase tracking-[3px] shadow-2xl shadow-orange-600/30 transition-all active:scale-95 flex items-center gap-3"
+            disabled={!url}
+            className="ml-2 px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-full font-black text-[10px] uppercase tracking-[3px] shadow-2xl shadow-orange-600/30 transition-all active:scale-95 flex items-center gap-3 disabled:opacity-50 disabled:grayscale"
           >
             <PlayCircle size={18} /> INICIAR AUDITORIA
           </button>

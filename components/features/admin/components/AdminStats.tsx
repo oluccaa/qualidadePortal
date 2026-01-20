@@ -28,11 +28,11 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, subtext, icon: Icon, 
             role="region"
             aria-label={`${label}: ${value}. ${subtext || ''}`}
         >
-            {/* Tooltip Estilizado */}
+            {/* Tooltip Premium */}
             {tooltip && (
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-2 bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-50 whitespace-nowrap shadow-xl">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-4 py-2.5 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[1.5px] rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 scale-95 group-hover:scale-100 z-50 whitespace-nowrap shadow-2xl border border-white/10">
                   {tooltip}
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900" />
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900/90" />
               </div>
             )}
 
@@ -46,7 +46,7 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, subtext, icon: Icon, 
                 <div>
                     <div className="flex items-center gap-2">
                         <h3 className="text-2xl font-bold text-slate-800 tracking-tight leading-none">{value}</h3>
-                        <Info size={12} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Info size={12} className="text-slate-300 opacity-100 group-hover:text-blue-500 transition-colors" />
                     </div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-1.5">{label}</p>
                 </div>
@@ -82,7 +82,7 @@ export const AdminStats: React.FC<AdminStatsProps> = ({ usersCount, activeUsersC
                     subtext={`${activeUsersCount} ${t('common.statusActive')}`}
                     icon={Users} 
                     variant="blue" 
-                    tooltip="Total de identidades digitais cadastradas."
+                    tooltip="Base de identidades autenticadas"
                 />
                 <StatCard 
                     label={t('admin.stats.organizations')} 
@@ -90,7 +90,7 @@ export const AdminStats: React.FC<AdminStatsProps> = ({ usersCount, activeUsersC
                     subtext={t('admin.stats.activeClientsSummary', { count: clientsCount })}
                     icon={Building2} 
                     variant="indigo" 
-                    tooltip="Empresas parceiras com acesso ao portal."
+                    tooltip="Parceiros com contratos vigentes"
                 />
                 <StatCard 
                     label={t('admin.stats.activities')} 
@@ -98,7 +98,7 @@ export const AdminStats: React.FC<AdminStatsProps> = ({ usersCount, activeUsersC
                     subtext={t('admin.stats.logsLast24hSummary', { count: logsCount })}
                     icon={Activity} 
                     variant="orange" 
-                    tooltip="Eventos críticos registrados nas últimas 24h."
+                    tooltip="Volume de logs operacionais (24h)"
                 />
             </div>
         </div>

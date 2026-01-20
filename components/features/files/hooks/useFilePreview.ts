@@ -11,7 +11,7 @@ export const useFilePreview = (user: User | null, initialFile: FileNode | null) 
   const [pageNum, setPageNum] = useState(1);
   const [zoom, setZoom] = useState(1.0);
   
-  const isLoadedRef = useRef(false);
+  // Ref para rastrear se a visualização já foi logada nesta montagem específica
   const hasLoggedViewRef = useRef(false);
 
   const loadFileDetails = useCallback(async (id: string) => {
@@ -37,29 +37,23 @@ export const useFilePreview = (user: User | null, initialFile: FileNode | null) 
   }, [user, showToast]);
 
   useEffect(() => {
-    // Se o arquivo inicial não tem ID, não fazemos nada
+    // Reset de logs ao mudar de arquivo ou remontar
+    hasLoggedViewRef.current = false;
+    
     if (!user || !initialFile?.id) return;
     
-    // Se temos apenas o ID (ex: via URL params), buscamos detalhes
-    if (!initialFile.name) {
+    // Se não temos a URL, carregamos tudo. 
+    // O Hook é re-executado ao voltar na navegação (remount)
+    if (!url) {
         loadFileDetails(initialFile.id);
-    } else if (!isLoadedRef.current) {
-        // Se já temos o objeto mas não assinamos a URL
-        isLoadedRef.current = true;
-        fileService.getFileSignedUrl(user, initialFile.id)
-            .then(async (signedUrl) => {
-                setUrl(signedUrl);
-                if (normalizeRole(user.role) === UserRole.CLIENT && !hasLoggedViewRef.current) {
-                    hasLoggedViewRef.current = true;
-                    await partnerService.logFileView(user, initialFile);
-                }
-            })
-            .catch(e => {
-                console.error("[useFilePreview] Erro ao assinar URL:", e);
-                showToast("Erro ao autenticar acesso ao arquivo.", "error");
-            });
     }
-  }, [initialFile?.id, user, loadFileDetails, initialFile?.name, showToast]);
+    
+    return () => {
+        // Cleanup para evitar fugas de memória ao sair da página
+        setUrl(null);
+        setIsSyncing(false);
+    };
+  }, [initialFile?.id, user, loadFileDetails]);
 
   const handleUpdateMetadata = useCallback(async (updatedMetadata: Partial<SteelBatchMetadata>) => {
     if (!currentFile) return;
