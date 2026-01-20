@@ -24,11 +24,17 @@ export const useQualityPortfolio = () => {
         setClients(portfolio);
       }
 
-      // 2. Query Base para Ativos em PENDING
+      /**
+       * 2. Query de Pendências Operacionais
+       * Para ANALISTA: Pendências são arquivos em 'PENDING' (aguardando liberação passo 1).
+       * Para CLIENTE: Pendências são arquivos em 'SENT' (aguardando conferência passos 2/3).
+       */
+      const targetStatus = isClient ? QualityStatus.SENT : QualityStatus.PENDING;
+
       let pendingQuery = supabase
         .from('files')
         .select('*, profiles:uploaded_by(full_name)')
-        .eq('metadata->>status', QualityStatus.PENDING)
+        .eq('metadata->>status', targetStatus)
         .neq('type', 'FOLDER');
 
       if (isClient) {
@@ -38,7 +44,10 @@ export const useQualityPortfolio = () => {
       const { data: pending, error: pendingError } = await pendingQuery;
       if (pendingError) console.error("Erro ao buscar pendências:", pendingError);
 
-      // 3. Query Base para Ativos REJECTED ou TO_DELETE
+      /**
+       * 3. Query de Divergências (Alertas Vermelhos)
+       * Arquivos que já foram interagidos mas resultaram em REJECTED ou precisam de substituição (TO_DELETE).
+       */
       let rejectedQuery = supabase
         .from('files')
         .select('*')

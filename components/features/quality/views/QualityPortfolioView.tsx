@@ -26,7 +26,7 @@ export const QualityPortfolioView: React.FC = () => {
         <div className="flex items-center justify-between">
           <h3 className="text-[10px] font-black uppercase tracking-[3px] text-red-500 flex items-center gap-2">
               <AlertCircle size={14} /> 
-              {isClient ? "Aguardando Minha Ação / Corrigidos" : `Contestação do Cliente (${rejectedFiles.length})`}
+              {isClient ? "Aguardando Minha Ação / Corrigidos" : `Contestações Ativas (${rejectedFiles.length})`}
           </h3>
           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Prioridade Crítica</span>
         </div>
@@ -64,7 +64,7 @@ export const QualityPortfolioView: React.FC = () => {
           {rejectedFiles.length === 0 && (
             <div className="col-span-full py-16 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2.5rem] flex flex-col items-center justify-center text-slate-400 italic">
               <ShieldCheck size={32} className="mb-3 opacity-20" />
-              <p className="text-xs font-bold uppercase tracking-widest">Nenhum conflito pendente no fluxo.</p>
+              <p className="text-xs font-bold uppercase tracking-widest">Nenhuma contestação ativa no momento.</p>
             </div>
           )}
         </div>
@@ -75,7 +75,7 @@ export const QualityPortfolioView: React.FC = () => {
         <div className="flex items-center justify-between">
           <h3 className="text-[10px] font-black uppercase tracking-[3px] text-slate-400 flex items-center gap-2">
               <Clock size={14} /> 
-              {isClient ? `Certificados Pendentes de Minha Conferência (${pendingFiles.length})` : `Novas Pendências de Triagem (${pendingFiles.length})`}
+              {isClient ? `Certificados Aguardando Minha Conferência (${pendingFiles.length})` : `Novas Pendências de Triagem (${pendingFiles.length})`}
           </h3>
         </div>
         
@@ -86,12 +86,14 @@ export const QualityPortfolioView: React.FC = () => {
               onClick={() => navigate(isClient ? `/preview/${file.id}?mode=audit` : `/quality/inspection/${file.id}`)}
               className="bg-white p-6 rounded-[2rem] border border-slate-200 hover:border-blue-500/30 shadow-sm hover:shadow-xl transition-all group cursor-pointer"
             >
-              <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1">{isClient ? "Aguardando Meu Aceite" : "Aguardando Auditoria"}</p>
+              <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1">
+                {isClient ? "Ação Requerida" : "Aguardando Triagem"}
+              </p>
               <h4 className="text-sm font-black text-slate-800 mb-6 uppercase truncate tracking-tight">{file.name}</h4>
               <div className="flex items-center justify-between pt-4 border-t border-slate-50">
                 <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg font-bold font-mono">{file.size}</span>
                 <div className="flex items-center gap-2 text-blue-600 font-bold text-[10px] uppercase tracking-widest">
-                  {isClient ? "Conferir" : "Analisar"} <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                  {isClient ? "Conferir Dados" : "Analisar Laudo"} <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
             </div>
@@ -99,7 +101,7 @@ export const QualityPortfolioView: React.FC = () => {
           {pendingFiles.length === 0 && (
             <div className="col-span-full py-16 bg-white border border-slate-200 rounded-[2.5rem] flex flex-col items-center justify-center text-slate-300">
                <ShieldCheck size={40} className="mb-4 opacity-10" />
-               <p className="text-xs font-black uppercase tracking-widest">Fluxo de trabalho limpo</p>
+               <p className="text-xs font-black uppercase tracking-widest">Tudo em conformidade. Fluxo de trabalho limpo.</p>
             </div>
           )}
         </div>
