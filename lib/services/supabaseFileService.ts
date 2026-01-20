@@ -1,4 +1,3 @@
-
 import { supabase } from '../supabaseClient.ts';
 import { FileNode, FileType, BreadcrumbItem, User, UserRole, FileFilters, SteelBatchMetadata } from '../../types/index.ts';
 import { IFileService, PaginatedResponse, DashboardStatsData } from './interfaces.ts';
@@ -44,15 +43,24 @@ export const SupabaseFileService: IFileService = {
   },
 
   getFile: async (user, fileId) => {
+    if (!fileId) throw new Error("Identificador de arquivo ausente.");
+
     const { data, error } = await supabase
       .from('files')
       .select('*, profiles:uploaded_by(full_name)')
       .eq('id', fileId)
-      .single();
+      .maybeSingle();
+
     if (error) {
-        console.error(`[SupabaseFileService] Erro ao buscar arquivo ${fileId}:`, error);
+        console.error(`[SupabaseFileService] Erro na query getFile (${fileId}):`, error);
+        throw new Error("Falha na comunicação com a base de dados industrial.");
+    }
+
+    if (!data) {
+        console.warn(`[SupabaseFileService] Arquivo ${fileId} não localizado ou sem permissão.`);
         throw new Error("Não foi possível localizar o registro do arquivo no banco de dados.");
     }
+
     return toDomainFile(data);
   },
 
@@ -164,12 +172,10 @@ export const SupabaseFileService: IFileService = {
   getSignedUrl: async (path) => {
     if (!path || path === 'system/folder') return '';
     
-    // Tentativa de gerar URL assinada
     const { data, error } = await supabase.storage.from(STORAGE_BUCKET).createSignedUrl(path, 3600);
     
     if (error) {
         console.error(`[Supabase Storage] Erro ao assinar URL para ${path}:`, error);
-        // Fallback: Tenta pegar URL pública se for erro de autorização mas o balde permitir leitura pública
         const { data: publicData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
         if (publicData?.publicUrl) return publicData.publicUrl;
         throw error;

@@ -1,4 +1,3 @@
-
 import React, { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Loader2, RefreshCw } from 'lucide-react';
@@ -27,14 +26,14 @@ const SettingsPage = React.lazy(() => import('./pages/shared/SettingsPage.tsx'))
 const NotFoundPage = React.lazy(() => import('./pages/shared/NotFoundPage.tsx'));
 
 const PageLoader = ({ message = "Carregando...", onRetry }: { message?: string; onRetry?: () => void }) => (
-  <div className="h-screen w-screen bg-[#132659] flex flex-col items-center justify-center text-white font-sans">
+  <div className="h-screen w-screen bg-slate-50 flex flex-col items-center justify-center text-slate-600 font-sans">
       <div className="relative mb-8">
-        <Loader2 size={48} className="animate-spin text-blue-500" />
-        <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full animate-pulse" />
+        <Loader2 size={48} className="animate-spin text-blue-600" />
+        <div className="absolute inset-0 bg-blue-500/10 blur-2xl rounded-full animate-pulse" />
       </div>
       <p className="text-[10px] font-black text-slate-400 tracking-[6px] uppercase animate-pulse mb-4 text-center px-6">{message}</p>
       {onRetry && (
-        <button onClick={onRetry} className="flex items-center gap-2 px-6 py-3 bg-white text-[#132659] rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95 shadow-lg">
+        <button onClick={onRetry} className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 text-[#132659] rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95 shadow-sm">
           <RefreshCw size={16} /> Tentar Novamente
         </button>
       )}

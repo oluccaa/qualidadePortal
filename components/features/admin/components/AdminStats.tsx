@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Users, Building2, Activity } from 'lucide-react';
+import { Users, Building2, Activity, Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface StatCardProps {
@@ -9,11 +8,9 @@ interface StatCardProps {
   subtext?: string;
   icon: React.ElementType;
   variant: 'blue' | 'indigo' | 'red' | 'orange' | 'slate';
+  tooltip?: string;
 }
 
-/**
- * Configuração de estilos (O) Aberto para novas variantes sem alterar o componente.
- */
 const STAT_VARIANTS = {
   blue: { bg: 'bg-blue-50', text: 'text-blue-600', icon: 'text-blue-600/10', circle: 'bg-blue-500' },
   indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600', icon: 'text-indigo-600/10', circle: 'bg-indigo-500' },
@@ -22,15 +19,23 @@ const STAT_VARIANTS = {
   slate: { bg: 'bg-slate-50', text: 'text-slate-600', icon: 'text-slate-600/10', circle: 'bg-slate-500' },
 };
 
-const StatCard: React.FC<StatCardProps> = ({ label, value, subtext, icon: Icon, variant }) => {
+const StatCard: React.FC<StatCardProps> = ({ label, value, subtext, icon: Icon, variant, tooltip }) => {
     const colors = STAT_VARIANTS[variant] || STAT_VARIANTS.slate;
 
     return (
         <div 
-            className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all"
+            className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-visible group hover:shadow-md transition-all"
             role="region"
             aria-label={`${label}: ${value}. ${subtext || ''}`}
         >
+            {/* Tooltip Estilizado */}
+            {tooltip && (
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-2 bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-50 whitespace-nowrap shadow-xl">
+                  {tooltip}
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900" />
+              </div>
+            )}
+
             <div className={`absolute -right-6 -top-6 p-4 transform scale-150 transition-opacity opacity-0 group-hover:opacity-100 ${colors.icon}`} aria-hidden="true">
                 <Icon size={120} />
             </div>
@@ -39,7 +44,10 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, subtext, icon: Icon, 
                     <Icon size={24} />
                 </div>
                 <div>
-                    <h3 className="text-2xl font-bold text-slate-800 tracking-tight leading-none">{value}</h3>
+                    <div className="flex items-center gap-2">
+                        <h3 className="text-2xl font-bold text-slate-800 tracking-tight leading-none">{value}</h3>
+                        <Info size={12} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-1.5">{label}</p>
                 </div>
             </div>
@@ -74,6 +82,7 @@ export const AdminStats: React.FC<AdminStatsProps> = ({ usersCount, activeUsersC
                     subtext={`${activeUsersCount} ${t('common.statusActive')}`}
                     icon={Users} 
                     variant="blue" 
+                    tooltip="Total de identidades digitais cadastradas."
                 />
                 <StatCard 
                     label={t('admin.stats.organizations')} 
@@ -81,6 +90,7 @@ export const AdminStats: React.FC<AdminStatsProps> = ({ usersCount, activeUsersC
                     subtext={t('admin.stats.activeClientsSummary', { count: clientsCount })}
                     icon={Building2} 
                     variant="indigo" 
+                    tooltip="Empresas parceiras com acesso ao portal."
                 />
                 <StatCard 
                     label={t('admin.stats.activities')} 
@@ -88,6 +98,7 @@ export const AdminStats: React.FC<AdminStatsProps> = ({ usersCount, activeUsersC
                     subtext={t('admin.stats.logsLast24hSummary', { count: logsCount })}
                     icon={Activity} 
                     variant="orange" 
+                    tooltip="Eventos críticos registrados nas últimas 24h."
                 />
             </div>
         </div>

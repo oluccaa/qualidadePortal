@@ -31,8 +31,8 @@ export const FileCard: React.FC<FileCardProps> = ({
     <div 
       className={`group relative flex flex-col bg-white border transition-all duration-300 rounded-2xl overflow-hidden cursor-pointer
         ${isSelected 
-          ? 'border-blue-600 ring-4 ring-blue-600/5 shadow-lg' 
-          : 'border-slate-200 hover:border-blue-400 hover:shadow-md'}`}
+          ? 'border-blue-600 ring-4 ring-blue-600/5 shadow-lg scale-[1.02]' 
+          : 'border-slate-200 hover:border-blue-400 hover:shadow-md hover:-translate-y-0.5'}`}
       onClick={handleMainClick}
     >
       {/* 1. ZONA DE AÇÕES (TOPO) */}

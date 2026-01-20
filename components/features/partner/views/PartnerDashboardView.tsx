@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { usePartnerDashboard } from '../hooks/usePartnerDashboard.ts';
-import { ShieldCheck, FileText, Clock, FileWarning, ArrowRight, Loader2, ClipboardCheck } from 'lucide-react';
+import { ShieldCheck, FileText, Clock, FileWarning, ArrowRight, Loader2, ClipboardCheck, Info } from 'lucide-react';
 import { FileStatusBadge } from '../../files/components/FileStatusBadge.tsx';
 import { useSearchParams } from 'react-router-dom';
 
@@ -25,9 +24,15 @@ export const PartnerDashboardView: React.FC = () => {
     <div className="space-y-8 animate-in fade-in duration-700">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Card: Status de Auditoria do Parceiro */}
-        <div className={`p-6 rounded-[2.5rem] border shadow-xl flex flex-col justify-between transition-all relative overflow-hidden group ${
+        <div className={`p-6 rounded-[2.5rem] border shadow-xl flex flex-col justify-between transition-all relative overflow-visible group ${
           hasPending ? 'bg-orange-600 border-orange-500 text-white' : 'bg-white border-slate-200'
         }`}>
+          {/* Tooltip */}
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-50 whitespace-normal text-center w-48 shadow-2xl">
+              Certificados que aguardam seu aceite ou contestação técnica.
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900" />
+          </div>
+
           <div className="relative z-10">
             <div className="flex items-center gap-4 mb-4">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${
@@ -35,7 +40,10 @@ export const PartnerDashboardView: React.FC = () => {
               }`}>
                 <ClipboardCheck size={24} />
               </div>
-              <h3 className={`text-[10px] font-black uppercase tracking-[2px] ${hasPending ? 'text-white/70' : 'text-slate-400'}`}>Ações Pendentes</h3>
+              <div className="flex flex-col">
+                  <h3 className={`text-[10px] font-black uppercase tracking-[2px] ${hasPending ? 'text-white/70' : 'text-slate-400'}`}>Ações Pendentes</h3>
+                  <Info size={10} className={hasPending ? 'text-white/30' : 'text-slate-300'} />
+              </div>
             </div>
             <div>
               <p className="text-5xl font-black tracking-tighter">{totalPending}</p>
@@ -51,12 +59,21 @@ export const PartnerDashboardView: React.FC = () => {
           )}
         </div>
 
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col justify-between group relative overflow-visible">
+          {/* Tooltip */}
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-50 whitespace-normal text-center w-48 shadow-2xl">
+              Documentos com conformidade validada por ambas as partes.
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900" />
+          </div>
+
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center border border-emerald-100 shadow-inner">
+            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center border border-emerald-100 shadow-inner group-hover:scale-110 transition-transform">
               <ShieldCheck size={24} />
             </div>
-            <h3 className="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Validados</h3>
+            <div className="flex flex-col">
+                <h3 className="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Validados</h3>
+                <Info size={10} className="text-slate-200" />
+            </div>
           </div>
           <div>
             <p className="text-4xl font-black text-slate-800 tracking-tighter">{stats?.subValue || 0}</p>
@@ -64,13 +81,22 @@ export const PartnerDashboardView: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-[#132659] p-6 rounded-[2.5rem] text-white flex flex-col justify-between shadow-2xl relative overflow-hidden">
+        <div className="bg-[#132659] p-6 rounded-[2.5rem] text-white flex flex-col justify-between shadow-2xl relative overflow-visible group">
+          {/* Tooltip */}
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-50 whitespace-normal text-center w-48 shadow-2xl">
+              Data da última sincronização automática com o servidor Vital.
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900" />
+          </div>
+
           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl" />
           <div className="flex items-center gap-4 mb-4 relative z-10">
-            <div className="w-12 h-12 bg-white/10 text-blue-400 rounded-2xl flex items-center justify-center border border-white/5 shadow-lg">
+            <div className="w-12 h-12 bg-white/10 text-blue-400 rounded-2xl flex items-center justify-center border border-white/5 shadow-lg group-hover:rotate-12 transition-transform">
               <Clock size={24} />
             </div>
-            <h3 className="text-[10px] font-black uppercase tracking-[2px] text-slate-500">Base Sincronizada</h3>
+            <div className="flex flex-col">
+                <h3 className="text-[10px] font-black uppercase tracking-[2px] text-slate-500">Base Sincronizada</h3>
+                <Info size={10} className="text-white/10" />
+            </div>
           </div>
           <div className="relative z-10">
             <p className="text-2xl font-black tracking-tight">{stats?.lastAnalysis ? new Date(stats.lastAnalysis).toLocaleDateString() : '--/--/----'}</p>
