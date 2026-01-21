@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../context/authContext.tsx';
@@ -16,6 +15,7 @@ import { PaginationControls } from '../../../common/PaginationControls.tsx';
 import { QualityLoadingState, ProcessingOverlay } from '../components/ViewStates.tsx';
 import { fileService } from '../../../../lib/services/index.ts';
 import { supabase } from '../../../../lib/supabaseClient.ts';
+import { MousePointer2 } from 'lucide-react';
 
 interface FileExplorerViewProps {
   orgId: string;
@@ -35,6 +35,9 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
   
   const [isReady, setIsReady] = useState(false);
+  const [isDraggingExternal, setIsDraggingExternal] = useState(false);
+  const [externalFiles, setExternalFiles] = useState<File[]>([]);
+  
   const [modals, setModals] = useState({
     upload: false, folder: false, rename: false, delete: false
   });
@@ -106,13 +109,63 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
     }
   };
 
+  // Drag & Drop Externo
+  const onDragOver = (e: React.DragEvent) => {
+    if (user?.role === UserRole.CLIENT) return;
+    e.preventDefault();
+    setIsDraggingExternal(true);
+  };
+
+  const onDragLeave = () => setIsDraggingExternal(false);
+
+  const onDrop = (e: React.DragEvent) => {
+    if (user?.role === UserRole.CLIENT) return;
+    e.preventDefault();
+    setIsDraggingExternal(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+        setExternalFiles(files);
+        setModals(m => ({ ...m, upload: true }));
+    }
+  };
+
   if (!isReady) return <QualityLoadingState message="Sincronizando Vault..." />;
 
   return (
-    <div className="flex flex-col h-full bg-white overflow-hidden animate-in fade-in duration-500">
-      {ops.isProcessing && <ProcessingOverlay message="Atualizando Base de Dados..." />}
+    <div 
+        className="flex flex-col h-full bg-white overflow-hidden animate-in fade-in duration-500 relative"
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+    >
+      {ops.isProcessing && (
+        <ProcessingOverlay 
+            message={ops.uploadProgress.total > 0 
+                ? `Processando Ativos (${ops.uploadProgress.current}/${ops.uploadProgress.total})...` 
+                : "Atualizando Base de Dados..."} 
+        />
+      )}
       
-      <UploadFileModal isOpen={modals.upload} onClose={() => setModals(m => ({...m, upload: false}))} onUpload={async (f, n) => { await ops.handleUpload(f, n, currentFolderId); setModals(m => ({...m, upload: false})); }} isUploading={ops.isProcessing} currentFolderId={currentFolderId} />
+      {isDraggingExternal && (
+          <div className="absolute inset-0 z-[400] bg-blue-600/10 backdrop-blur-md border-4 border-dashed border-blue-500 m-4 rounded-[3rem] flex flex-col items-center justify-center animate-in zoom-in-95 pointer-events-none">
+              <div className="p-6 bg-blue-600 text-white rounded-3xl shadow-2xl animate-bounce mb-6">
+                  <MousePointer2 size={48} />
+              </div>
+              <h3 className="text-2xl font-black text-blue-900 uppercase tracking-[4px]">Solte para Iniciar Upload</h3>
+              <p className="text-blue-700 font-bold uppercase tracking-widest mt-2">Múltiplos arquivos serão enfileirados</p>
+          </div>
+      )}
+      
+      <UploadFileModal 
+        isOpen={modals.upload} 
+        onClose={() => { setModals(m => ({...m, upload: false})); setExternalFiles([]); }} 
+        onUpload={async (files) => { await ops.handleUploadBatch(files, currentFolderId); setModals(m => ({...m, upload: false})); setExternalFiles([]); }} 
+        isUploading={ops.isProcessing} 
+        currentFolderId={currentFolderId}
+        initialFiles={externalFiles}
+      />
+
       <CreateFolderModal isOpen={modals.folder} onClose={() => setModals(m => ({...m, folder: false}))} onCreate={async (n) => { await ops.handleCreateFolder(n, currentFolderId); setModals(m => ({...m, folder: false})); }} isCreating={ops.isProcessing} />
       <RenameModal isOpen={modals.rename} onClose={() => setModals(m => ({...m, rename: false}))} onRename={async (n) => { await ops.handleRename(fileToRename!.id, n); setModals(m => ({...m, rename: false})); }} isRenaming={ops.isProcessing} currentName={fileToRename?.name || ''} />
       <DeleteConfirmationModal isOpen={modals.delete} onClose={() => setModals(m => ({...m, delete: false}))} onConfirm={async () => { await ops.handleDelete(selectedFileIds); setModals(m => ({...m, delete: false})); setSelectedFileIds([]); }} isDeleting={ops.isProcessing} itemCount={selectedFileIds.length} hasFolder={collection.files.some(f => selectedFileIds.includes(f.id) && f.type === FileType.FOLDER)} />
@@ -122,7 +175,7 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
         onNavigate={handleNavigate} 
         searchTerm={searchTerm} 
         onSearchChange={setSearchTerm} 
-        onUploadClick={() => setModals(m => ({...m, upload: true}))} 
+        onUploadClick={() => { setExternalFiles([]); setModals(m => ({...m, upload: true})); }} 
         onCreateFolderClick={() => setModals(m => ({...m, folder: true}))} 
         selectedCount={selectedFileIds.length} 
         onDeleteSelected={() => setModals(m => ({...m, delete: true}))} 

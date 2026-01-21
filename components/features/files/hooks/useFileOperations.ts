@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useAuth } from '../../../../context/authContext.tsx';
 import { fileService } from '../../../../lib/services/index.ts';
@@ -15,6 +14,7 @@ export const useFileOperations = (ownerId?: string | null, onMutationSuccess?: (
   const { t } = useTranslation();
   const { showToast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
 
   const getTargetOwnerId = useCallback(() => {
     return (ownerId && ownerId !== 'global') 
@@ -22,7 +22,7 @@ export const useFileOperations = (ownerId?: string | null, onMutationSuccess?: (
       : (user?.role === UserRole.CLIENT ? user.organizationId : null);
   }, [ownerId, user]);
 
-  const handleUpload = useCallback(async (fileBlob: File, fileName: string, parentId: string | null) => {
+  const handleUploadBatch = useCallback(async (files: File[], parentId: string | null) => {
     const targetId = getTargetOwnerId();
     if (!user || !targetId) {
       showToast(t('files.upload.noOrgLinked'), 'error');
@@ -30,22 +30,33 @@ export const useFileOperations = (ownerId?: string | null, onMutationSuccess?: (
     }
 
     setIsProcessing(true);
+    setUploadProgress({ current: 0, total: files.length });
+    
     try {
-      await fileService.uploadFile(user, {
-        name: fileName,
-        fileBlob,
-        parentId,
-        type: fileBlob.type.startsWith('image/') ? FileType.IMAGE : FileType.PDF,
-        size: `${(fileBlob.size / 1024 / 1024).toFixed(2)} MB`,
-        mimeType: fileBlob.type
-      }, targetId);
+      let successCount = 0;
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setUploadProgress({ current: i + 1, total: files.length });
+        
+        await fileService.uploadFile(user, {
+          name: file.name,
+          fileBlob: file,
+          parentId,
+          type: file.type.startsWith('image/') ? FileType.IMAGE : FileType.PDF,
+          size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+          mimeType: file.type
+        }, targetId);
+        
+        successCount++;
+      }
       
-      showToast(t('files.upload.success'), 'success');
+      showToast(`${successCount} arquivo(s) sincronizado(s) com sucesso!`, 'success');
       onMutationSuccess?.();
     } catch (err: any) {
-      showToast(err.message, 'error');
+      showToast(`Falha parcial: ${err.message}`, 'error');
     } finally {
       setIsProcessing(false);
+      setUploadProgress({ current: 0, total: 0 });
     }
   }, [user, getTargetOwnerId, showToast, t, onMutationSuccess]);
 
@@ -96,5 +107,12 @@ export const useFileOperations = (ownerId?: string | null, onMutationSuccess?: (
     }
   }, [user, showToast, t, onMutationSuccess]);
 
-  return { isProcessing, handleUpload, handleCreateFolder, handleDelete, handleRename };
+  return { 
+    isProcessing, 
+    uploadProgress,
+    handleUploadBatch, 
+    handleCreateFolder, 
+    handleDelete, 
+    handleRename 
+  };
 };
