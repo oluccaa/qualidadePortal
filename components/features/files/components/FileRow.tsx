@@ -25,7 +25,7 @@ export const FileRow: React.FC<FileRowProps> = ({
   return (
     <div 
       className={`group flex items-center px-8 py-4 hover:bg-slate-50 transition-all cursor-pointer relative border-b border-slate-100 last:border-0
-        ${isSelected ? 'bg-[#132659]/5' : ''}`}
+        ${isSelected ? 'bg-blue-50/50' : ''}`}
       onClick={() => isFolder ? onNavigate(file.id) : onPreview(file)}
       title={isFolder ? "Explorar Pasta" : "Abrir Certificado"}
     >
@@ -35,13 +35,13 @@ export const FileRow: React.FC<FileRowProps> = ({
             {file.name}
           </span>
           {isViewed && !isFolder && (
-            <div className="flex items-center gap-1 text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100" title={`Visualizado pelo cliente em ${new Date(file.metadata!.viewedAt!).toLocaleDateString()}`}>
+            <div className="flex items-center gap-1 text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100" title={`Visualizado pelo cliente`}>
                <Eye size={10} strokeWidth={3} />
                <span className="text-[8px] font-black uppercase">Visto</span>
             </div>
           )}
           {!isFolder && file.metadata?.batchNumber && (
-            <span className="text-[8px] font-black bg-slate-900 text-white px-1.5 py-0.5 rounded tracking-[2px]">
+            <span className="text-[8px] font-bold bg-slate-900 text-white px-1.5 py-0.5 rounded tracking-[2px]">
               LOT: {file.metadata.batchNumber}
             </span>
           )}
@@ -52,7 +52,7 @@ export const FileRow: React.FC<FileRowProps> = ({
         {isFolder ? '--' : file.size || '--'}
       </div>
 
-      <div className="w-40 hidden md:block">
+      <div className="w-40 hidden md:block px-6">
         <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
             <Clock size={12} className="text-slate-300" />
             {new Date(file.updatedAt).toLocaleDateString()}
@@ -63,39 +63,39 @@ export const FileRow: React.FC<FileRowProps> = ({
         {!isFolder ? (
             <FileStatusBadge status={file.metadata?.status} />
         ) : (
-            <div className="flex items-center gap-1.5 text-slate-200">
+            <div className="flex items-center gap-1.5 text-slate-300">
                <HardDrive size={12} />
                <span className="text-[8px] font-black uppercase tracking-widest">Dossier</span>
             </div>
         )}
       </div>
 
-      <div className="flex items-center gap-1 px-2">
+      <div className="w-24 flex items-center justify-end gap-1">
         {!isClient && (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button 
               onClick={(e) => { e.stopPropagation(); onRename(file); }}
-              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition-all"
               title="Renomear"
             >
-              <Edit2 size={16} />
+              <Edit2 size={14} />
             </button>
             {!isRootFolder && (
               <button 
                 onClick={(e) => { e.stopPropagation(); onDelete(file.id); }}
-                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition-all"
                 title="Excluir"
               >
-                <Trash2 size={16} />
+                <Trash2 size={14} />
               </button>
             )}
           </div>
         )}
         <button 
           onClick={(e) => { e.stopPropagation(); onToggleSelection(file.id); }}
-          className={`p-2 rounded-lg transition-all ${isSelected ? 'text-[#132659]' : 'text-slate-200 hover:text-slate-400 group-hover:opacity-100'}`}
+          className={`p-1.5 rounded-lg transition-all ${isSelected ? 'text-blue-600' : 'text-slate-200 hover:text-slate-400'}`}
         >
-          {isSelected ? <CheckSquare size={22} /> : <Square size={22} />}
+          {isSelected ? <CheckSquare size={20} /> : <Square size={20} />}
         </button>
       </div>
     </div>

@@ -62,62 +62,31 @@ export const FileInspection: React.FC = () => {
   const storagePath = inspectorFile.storagePath || '';
   const hashValue = storagePath.split('/').pop()?.substring(0, 12).toUpperCase() || 'N/A';
 
-  /**
-   * MOTOR DE CÁLCULO DE PROGRESSO VITAL v4.0 (9 UNIDADES)
-   * Fórmula: x + 2x + 2x + x + x + x + x = 9x
-   * Condição Especial: Se status global === APPROVED, progresso é 100%.
-   */
   const calculateProgress = () => {
     const meta = inspectorFile.metadata;
     if (!meta) return 0;
-    
-    // Se o protocolo já foi certificado com sucesso, o progresso é absoluto.
     if (meta.status === QualityStatus.APPROVED) return 100;
 
     const sigs = meta.signatures || {};
     let units = 0;
     const totalUnits = 9;
 
-    // Passo 1: Liberação (Peso 1)
     if (sigs.step1_release) units += 1;
-
     const s2Done = !!sigs.step2_documental;
     const s3Done = !!sigs.step3_physical;
-
-    // Passo 2: Dados Técnicos (Peso 2 se Aprovado, Peso 1 se Rejeitado)
-    if (s2Done) {
-      units += (meta.documentalStatus === 'APPROVED' ? 2 : 1);
-    }
-
-    // Passo 3: Vistoria de Carga (Peso 2 se Aprovado, Peso 1 se Rejeitado)
-    if (s3Done) {
-      units += (meta.physicalStatus === 'APPROVED' ? 2 : 1);
-    }
-
-    // Passos 4 e 5: Arbitragem e Veredito (Peso 1 cada)
+    if (s2Done) units += (meta.documentalStatus === 'APPROVED' ? 2 : 1);
+    if (s3Done) units += (meta.physicalStatus === 'APPROVED' ? 2 : 1);
     if (s2Done && s3Done) {
-      const isS2Approved = meta.documentalStatus === 'APPROVED';
-      const isS3Approved = meta.physicalStatus === 'APPROVED';
-      
-      if (isS2Approved && isS3Approved) {
-        // Bypass de Mediação: Concede pontos automaticamente para fluxo limpo
-        units += 2;
-      } else {
-        // Fluxo de Divergência: Pontos contam apenas com a assinatura
+      if (meta.documentalStatus === 'APPROVED' && meta.physicalStatus === 'APPROVED') units += 2;
+      else {
         if (sigs.step4_contestation) units += 1;
         if (sigs.step5_mediation_review) units += 1;
       }
     }
-
-    // Passo 6: Consolidação (Peso 1)
     if (sigs.step6_system_log) units += 1;
-
-    // Passo 7: Certificação Final (Peso 1)
     if (sigs.step7_final_verdict) units += 1;
 
-    const percentage = (units / totalUnits) * 100;
-    
-    return Math.min(Math.round(percentage), 100);
+    return Math.min(Math.round((units / totalUnits) * 100), 100);
   };
 
   return (
@@ -214,7 +183,7 @@ export const FileInspection: React.FC = () => {
             <div className="max-w-4xl mx-auto p-10">
               <header className="mb-8 flex items-end justify-between border-b border-slate-100 pb-5">
                 <div>
-                  <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">
+                  <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">
                     {isQuality ? "Fluxo de Auditoria Técnica" : "Conformidade dos documentos"}
                   </h2>
                   <p className="text-[11px] font-medium text-slate-500 mt-1.5">

@@ -23,13 +23,25 @@ export const FileListView: React.FC<FileViewProps> = ({
 }) => {
   return (
     <div className="min-w-full divide-y divide-slate-100 bg-white">
-      <div className="flex items-center px-8 py-5 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-[4px] border-b border-slate-200">
-        <div className="flex-1">Identificador / Nome do Ativo</div>
-        <div className="w-24 hidden lg:block text-right px-4">Tamanho</div>
-        <div className="w-40 hidden md:block">Atualização</div>
-        <div className="w-32">Status</div>
-        <div className="w-16 text-right">Ações</div>
+      {/* Cabeçalho Refatorado para Clareza e Alinhamento */}
+      <div className="hidden md:flex items-center px-8 py-5 bg-slate-50 border-b border-slate-200">
+        <div className="flex-1 text-[10px] font-black text-slate-400 uppercase tracking-[3px]">
+          Identificador / Nome do Ativo
+        </div>
+        <div className="w-24 hidden lg:block text-right px-4 text-[10px] font-black text-slate-400 uppercase tracking-[3px]">
+          Tamanho
+        </div>
+        <div className="w-40 hidden md:block px-6 text-[10px] font-black text-slate-400 uppercase tracking-[3px]">
+          Atualização
+        </div>
+        <div className="w-32 text-[10px] font-black text-slate-400 uppercase tracking-[3px]">
+          Status
+        </div>
+        <div className="w-24 text-right text-[10px] font-black text-slate-400 uppercase tracking-[3px]">
+          Ações
+        </div>
       </div>
+      
       {files.map((file) => (
         <FileRow 
           key={file.id}
@@ -53,7 +65,6 @@ export const FileListView: React.FC<FileViewProps> = ({
 export const FileGridView: React.FC<FileViewProps> = ({ 
   files, onNavigate, onSelectFileForPreview, selectedFileIds, onToggleFileSelection, onRename, onDelete, userRole
 }) => {
-  // A GridView renderiza os FileCards diretamente. O FileExplorer usa este componente.
   return (
     <>
       {files.map((file) => (

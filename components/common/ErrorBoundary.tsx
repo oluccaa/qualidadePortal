@@ -17,8 +17,8 @@ interface State {
  * Proteção de última instância para falhas catastróficas.
  * Projetado para funcionar mesmo se o sistema de estilos ou tradução falhar.
  */
-// Fix: Explicitly extending React.Component ensures setState and props are correctly inherited in the TypeScript environment
-export class ErrorBoundary extends React.Component<Props, State> {
+// Fix: Extending Component directly from react to ensure inheritance is correctly resolved by TypeScript
+export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null,
@@ -40,12 +40,12 @@ export class ErrorBoundary extends React.Component<Props, State> {
       timestamp: new Date().toISOString()
     });
     
-    // Fix: Using setState inherited from the React.Component base class
+    // Fix: setState is inherited from Component base class
     this.setState({ errorInfo });
   }
 
   private handleSoftReset = () => {
-    // Fix: Using setState inherited from the React.Component base class to reset error state
+    // Fix: setState is available on this instance extending Component
     this.setState({ hasError: false, error: null, errorInfo: null });
     window.location.href = '/';
   };
@@ -115,7 +115,7 @@ Component Stack: ${this.state.errorInfo?.componentStack}
 
                 <div className="w-full pt-6 border-t border-white/5">
                   <button 
-                    // Fix: Accessing setState from inherited React.Component base class
+                    // Fix: setState call from Component instance
                     onClick={() => this.setState({ showDetails: !this.state.showDetails })}
                     className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[3px] text-slate-500 hover:text-slate-300 transition-colors mx-auto"
                   >
@@ -164,7 +164,7 @@ Component Stack: ${this.state.errorInfo?.componentStack}
       );
     }
 
-    // Fix: Correctly accessing props from inherited React.Component base class
+    // Fix: Accessing children from props inherited from Component
     return this.props.children;
   }
 }
