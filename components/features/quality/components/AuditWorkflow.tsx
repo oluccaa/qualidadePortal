@@ -1,6 +1,6 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-// Added missing Clock icon import
 import { 
   Check, Key, Activity, FileText, ArrowRight, ShieldCheck, 
   Truck, Gavel, UserCheck, Lock, Award, Mail, AlertTriangle, XCircle,
@@ -73,6 +73,13 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
     }
   };
 
+  const handleNavigateToPreview = () => {
+      // Regra: Se o passo 2 não acabou e é cliente, abre modo edição. 
+      // Se o passo acabou ou é qualidade, abre modo leitura de notas.
+      const mode = (!s2 && isClient) ? '?mode=audit' : '?notes=true';
+      navigate(`/preview/${fileId}${mode}`);
+  };
+
   const addFlag = (type: 'doc' | 'phys') => {
     const val = type === 'doc' ? newDocFlag : newPhysFlag;
     if (!val.trim()) return;
@@ -122,13 +129,13 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
             <div className="space-y-6">
                 <button 
                     disabled={!s1}
-                    onClick={() => navigate(`/preview/${fileId}?mode=audit`)} 
+                    onClick={handleNavigateToPreview} 
                     className={`w-full py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${
                         s1 ? 'bg-blue-50 text-blue-700 border-2 border-blue-200 hover:bg-blue-100 shadow-sm' : 'bg-slate-50 text-slate-400 border border-slate-200 opacity-50 cursor-not-allowed'
                     }`}
                     aria-label="Abrir estação de anotação de documentos"
                 >
-                    {isQuality && s2 ? <><Eye size={18} /> Ver Notas do Parceiro</> : <><FileText size={18} /> Estação de Anotação Técnica</>}
+                    {s2 ? <><Eye size={18} /> Visualizar Notas (Leitura)</> : <><FileText size={18} /> Estação de Anotação Técnica</>}
                 </button>
 
                 {((isClient && s1 && !s2) || (s2)) && (
