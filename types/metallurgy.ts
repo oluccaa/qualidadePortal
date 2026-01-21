@@ -71,6 +71,10 @@ export interface SteelBatchMetadata {
   viewedAt?: ISO8601Date;
   clientObservations?: string;
   replacementFileId?: string;
+
+  // Fix: Added audit tracking properties to support the audit workflow in FilePreviewPage
+  auditStartTime?: ISO8601Date;
+  auditDurationSeconds?: number;
   
   // Assinaturas de Etapas (Tracing Completo)
   signatures: {
