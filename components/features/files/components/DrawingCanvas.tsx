@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { AnnotationItem, NormalizedPoint, AnnotationType } from '../../../../types/metallurgy.ts';
 
@@ -21,7 +20,6 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const [currentPoints, setCurrentPoints] = useState<NormalizedPoint[]>([]);
   const [startPoint, setStartPoint] = useState<NormalizedPoint | null>(null);
 
-  // Redesenha todas as anotações existentes quando o zoom, tamanho ou lista de anotações mudar
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -62,7 +60,6 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       }
     });
 
-    // Reset alpha e composite para desenhos futuros
     ctx.globalAlpha = 1.0;
     ctx.globalCompositeOperation = 'source-over';
   }, [pageAnnotations, width, height]);
@@ -72,7 +69,8 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   }, [redraw]);
 
   const getNormalizedPos = (e: React.MouseEvent | React.TouchEvent): NormalizedPoint => {
-    const canvas = canvasRef.current!;
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     const clientX = ('touches' in e) ? e.touches[0].clientX : e.clientX;
     const clientY = ('touches' in e) ? e.touches[0].clientY : e.clientY;
@@ -84,7 +82,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   };
 
   const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
-    if (tool === 'hand') return;
+    if (tool === 'hand' || !canvasRef.current) return;
     const pos = getNormalizedPos(e);
     setIsDrawing(true);
     
@@ -96,12 +94,11 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   };
 
   const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDrawing || tool === 'hand') return;
+    if (!isDrawing || tool === 'hand' || !canvasRef.current) return;
     const pos = getNormalizedPos(e);
-    const canvas = canvasRef.current!;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvasRef.current.getContext('2d');
+    if (!ctx) return;
 
-    // Desenho temporário (feedback visual imediato)
     if (tool === 'pencil' || tool === 'marker' || tool === 'eraser') {
       ctx.beginPath();
       ctx.strokeStyle = tool === 'marker' ? `${color}66` : color;
@@ -110,9 +107,11 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
       
       const lastPoint = currentPoints[currentPoints.length - 1];
-      ctx.moveTo(lastPoint.x * width, lastPoint.y * height);
-      ctx.lineTo(pos.x * width, pos.y * height);
-      ctx.stroke();
+      if (lastPoint) {
+          ctx.moveTo(lastPoint.x * width, lastPoint.y * height);
+          ctx.lineTo(pos.x * width, pos.y * height);
+          ctx.stroke();
+      }
       
       setCurrentPoints(prev => [...prev, pos]);
     }
@@ -141,7 +140,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     setIsDrawing(false);
     setCurrentPoints([]);
     setStartPoint(null);
-    redraw(); // Garante a renderização final limpa
+    redraw();
   };
 
   return (
