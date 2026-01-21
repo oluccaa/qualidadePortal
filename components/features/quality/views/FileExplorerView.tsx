@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../context/authContext.tsx';
@@ -187,7 +188,7 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
         selectedFilesData={collection.files.filter(f => selectedFileIds.includes(f.id))} 
       />
 
-      <div className="flex-1 relative bg-slate-50 flex flex-col">
+      <div className="flex-1 relative bg-slate-50 flex flex-col min-h-0">
         <div className="flex-1 relative min-h-0">
           <FileExplorer 
               ref={fileExplorerRef} 
@@ -208,14 +209,17 @@ export const FileExplorerView: React.FC<FileExplorerViewProps> = ({ orgId }) => 
           />
         </div>
         
-        <PaginationControls 
-          currentPage={collection.page}
-          pageSize={collection.pageSize}
-          totalItems={collection.totalItems}
-          onPageChange={collection.setPage}
-          onPageSizeChange={collection.setPageSize}
-          isLoading={collection.loading}
-        />
+        {/* pb-20 no mobile para compensar a Dock/MobileNav */}
+        <div className="shrink-0 pb-20 lg:pb-0">
+            <PaginationControls 
+              currentPage={collection.page}
+              pageSize={collection.pageSize}
+              totalItems={collection.totalItems}
+              onPageChange={collection.setPage}
+              onPageSizeChange={collection.setPageSize}
+              isLoading={collection.loading}
+            />
+        </div>
       </div>
     </div>
   );
