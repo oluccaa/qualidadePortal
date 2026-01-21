@@ -13,6 +13,7 @@ interface VersionSubViewProps {
   userRole: UserRole;
   onUpload: (file: File) => Promise<void>;
   onDownload: (file: FileNode) => void;
+  onDownloadPath?: (path: string) => void;
 }
 
 /**
@@ -107,6 +108,16 @@ export const VersionHistoryView: React.FC<VersionSubViewProps> = ({ file, onDown
     setExpandedVersion(expandedVersion === version ? null : version);
   };
 
+  const handleDownloadHistorical = (storagePath: string, version: number) => {
+    // Cria um objeto temporário simulando um FileNode para o serviço de download
+    onDownload({
+      ...file,
+      storagePath,
+      versionNumber: version,
+      name: `${file.name} (v${version}.0)`
+    });
+  };
+
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
       <header className="flex items-center gap-4">
@@ -145,7 +156,11 @@ export const VersionHistoryView: React.FC<VersionSubViewProps> = ({ file, onDown
                       {expandedVersion === (file.versionNumber || 1) ? <ChevronUp size={14}/> : <Eye size={14}/>}
                       {expandedVersion === (file.versionNumber || 1) ? "Fechar Resumo" : "Analisar Protocolo"}
                     </button>
-                    <button className="p-2 text-slate-400 hover:text-blue-600 transition-colors">
+                    <button 
+                      onClick={() => onDownload(file)}
+                      className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
+                      title="Download da Versão Atual"
+                    >
                       <Download size={16} />
                     </button>
                   </div>
@@ -180,7 +195,11 @@ export const VersionHistoryView: React.FC<VersionSubViewProps> = ({ file, onDown
                                 >
                                   {expandedVersion === v.version ? "Esconder" : "Analisar"}
                                 </button>
-                                <button className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 rounded-xl transition-all">
+                                <button 
+                                  onClick={() => handleDownloadHistorical(v.storagePath, v.version)}
+                                  className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 rounded-xl transition-all"
+                                  title={`Baixar Versão ${v.version}.0`}
+                                >
                                     <Download size={14} />
                                 </button>
                             </div>
@@ -188,7 +207,6 @@ export const VersionHistoryView: React.FC<VersionSubViewProps> = ({ file, onDown
 
                         {expandedVersion === v.version && (
                           <div className="mt-4 pt-4 border-t border-slate-200 animate-in slide-in-from-top-2">
-                            {/* Nota: Em um sistema real, aqui buscaríamos o snapshot da versão X no file_reviews */}
                             <VersionAnalysisSummary isHistorical />
                           </div>
                         )}
@@ -265,7 +283,7 @@ const VersionAnalysisSummary: React.FC<{ metadata?: SteelBatchMetadata, isHistor
 
       {isHistorical && (
         <div className="mt-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100 flex items-center gap-3">
-          <Info size={16} className="text-blue-500 shrink-0" />
+          <AlertCircle size={16} className="text-blue-500 shrink-0" />
           <p className="text-[9px] text-blue-700 font-medium leading-tight">
             Estes dados representam o estado do protocolo no momento do arquivamento desta versão. Para visualizar o documento físico desta versão, utilize o botão de Download acima.
           </p>
@@ -274,7 +292,3 @@ const VersionAnalysisSummary: React.FC<{ metadata?: SteelBatchMetadata, isHistor
     </div>
   );
 };
-
-const Info = ({ size, className }: any) => (
-    <AlertCircle size={size} className={className} />
-);

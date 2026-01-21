@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Layout } from '../../../layout/MainLayout.tsx';
 import { AuditWorkflow } from '../components/AuditWorkflow.tsx';
 import { NewVersionUploadView, VersionHistoryView } from '../components/VersionViews.tsx';
@@ -8,7 +8,8 @@ import { useFileInspection } from '../hooks/useFileInspection.ts';
 import { 
   AlertCircle, Database, FileText, 
   Terminal, ClipboardList, Users, Clock, 
-  Activity, GitBranch, History, ExternalLink
+  Activity, GitBranch, History, ExternalLink,
+  CalendarCheck, ArrowUpRight, UserCheck
 } from 'lucide-react';
 import { QualityStatus, UserRole, normalizeRole } from '../../../../types/index.ts';
 
@@ -25,6 +26,30 @@ export const FileInspection: React.FC = () => {
 
   const role = normalizeRole(user?.role);
   const isQuality = role === UserRole.QUALITY || role === UserRole.ADMIN;
+
+  // Cálculos de Auditoria (Ledger Intelligence)
+  const auditMetrics = useMemo(() => {
+    if (!inspectorFile?.metadata) return null;
+    const sigs = inspectorFile.metadata.signatures || {};
+    
+    // Identifica o primeiro usuário do cliente que assinou o fluxo
+    const clientSignature = 
+      sigs.step2_documental || 
+      sigs.step5_partner_verdict || 
+      sigs.step6_consolidation_client;
+
+    // Localiza a última assinatura para o fim do ciclo
+    const allSigs = Object.values(sigs).filter(Boolean).sort((a: any, b: any) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+
+    return {
+      startTime: sigs.step1_release?.timestamp,
+      endTime: allSigs.length > 1 ? (allSigs[0] as any).timestamp : null,
+      clientUser: clientSignature?.userName || 'Aguardando Acesso',
+      vitalUser: sigs.step1_release?.userName || 'Pendente'
+    };
+  }, [inspectorFile]);
 
   if (loadingFile) {
     return <QualityLoadingState message="Sincronizando protocolos técnicos..." />;
@@ -58,41 +83,25 @@ export const FileInspection: React.FC = () => {
     const meta = inspectorFile.metadata;
     if (!meta) return 0;
     const sigs = meta.signatures || {};
-    
     let completedSteps = 0;
-    
-    // Etapa 1: Liberação
     if (sigs.step1_release) completedSteps++;
-    
-    // Etapa 2: Documental
     if (sigs.step2_documental) completedSteps++;
-    
-    // Etapa 3: Física
     if (sigs.step3_physical) completedSteps++;
-    
-    // Etapa 4: Arbitragem (Manual ou Automática)
     const isArbitrationNeeded = meta.documentalStatus === 'REJECTED' || meta.physicalStatus === 'REJECTED';
     const isStep4AutoCompleted = sigs.step2_documental && sigs.step3_physical && !isArbitrationNeeded;
     if (sigs.step4_arbitrage || isStep4AutoCompleted) completedSteps++;
-    
-    // Etapa 5: Veredito Parceiro
     if (sigs.step5_partner_verdict) completedSteps++;
-    
-    // Etapa 6: Consolidação Digital (Ambas assinaturas)
-    const s6_c = !!sigs.step6_consolidation_client;
-    const s6_q = !!sigs.step6_consolidation_quality;
-    if (s6_c && s6_q) completedSteps++;
-    
-    // Etapa 7: Certificação Final (Depende da consolidação)
-    if (s6_c && s6_q) completedSteps++;
-
+    if (sigs.step6_consolidation_client && sigs.step6_consolidation_quality) {
+        completedSteps++; // Passo 6
+        completedSteps++; // Passo 7 (Certificação)
+    }
     return Math.round((completedSteps / 7) * 100);
   };
 
-  const formatDateTime = (iso: string | undefined) => {
-    if (!iso) return 'Aguardando...';
+  const formatDateTime = (iso: string | undefined | null) => {
+    if (!iso) return 'Pendente';
     return new Date(iso).toLocaleString('pt-BR', {
-        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+        day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit'
     });
   };
 
@@ -143,48 +152,71 @@ export const FileInspection: React.FC = () => {
         </header>
 
         <div className="flex-1 flex overflow-hidden">
-          {/* Sidebar */}
+          {/* Sidebar de Auditoria Refinada */}
           <aside className={`w-80 border-r border-slate-100 ${theme.asideBg} hidden lg:flex flex-col shrink-0 p-8 space-y-10 overflow-y-auto custom-scrollbar`}>
-            <section className="space-y-5">
-                <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+            
+            <section className="space-y-6">
+                <h3 className="text-xs font-black text-slate-500 uppercase tracking-[3px] flex items-center gap-2">
                     <Database size={16} className="text-blue-500" /> Rastreabilidade Ledger
                 </h3>
                 <div className="space-y-4 px-1">
                     <TechnicalInfo label="ID de Referência" value={inspectorFile.id.split('-')[0].toUpperCase()} />
-                    <TechnicalInfo label="Versão do Ativo" value={`v${inspectorFile.versionNumber || 1}.0 Final`} />
+                    <TechnicalInfo label="Versão do Ativo" value={`v${inspectorFile.versionNumber || 1}.0 FINAL`} />
                 </div>
             </section>
 
-            <section className="space-y-5">
-                <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+            <section className="space-y-6">
+                <h3 className="text-xs font-black text-slate-500 uppercase tracking-[3px] flex items-center gap-2">
                     <Users size={16} className="text-blue-500" /> Governança e Partes
                 </h3>
                 <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-200 shadow-sm space-y-6">
                     <TechnicalInfo 
-                      label="Responsável Vital" 
-                      value={inspectorFile.metadata?.signatures?.step1_release?.userName || 'Pendente de Emissão'} 
-                    />
-                    <TechnicalInfo 
-                      label="Entidade Parceira" 
+                      label="Empresa Parceira" 
                       value={inspectorFile.organizationName || user?.organizationName || 'N/A'} 
                     />
-                    <div className="pt-5 border-t border-slate-100">
-                      <div className="flex items-start gap-3">
-                         <div className="p-2 bg-blue-50 text-blue-600 rounded-xl"><Clock size={16} strokeWidth={2.5} /></div>
-                         <TechnicalInfo 
-                            label="Transmissão do Lote" 
-                            value={formatDateTime(inspectorFile.metadata?.signatures?.step1_release?.timestamp)} 
-                         />
-                      </div>
+                    <TechnicalInfo 
+                      label="Responsável Vital" 
+                      value={auditMetrics?.vitalUser || 'Emissão Pendente'} 
+                    />
+                    <TechnicalInfo 
+                      label="Usuário Cliente" 
+                      value={auditMetrics?.clientUser || 'Aguardando Aceite'} 
+                      icon={<UserCheck size={14} className="text-blue-500" />}
+                    />
+                </div>
+            </section>
+
+            <section className="space-y-6">
+                <h3 className="text-xs font-black text-slate-500 uppercase tracking-[3px] flex items-center gap-2">
+                    <Clock size={16} className="text-blue-500" /> Janela de Auditoria
+                </h3>
+                <div className="space-y-5 px-1">
+                    <div className="flex items-start gap-4">
+                        <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl shrink-0"><ArrowUpRight size={16} strokeWidth={3} /></div>
+                        <TechnicalInfo 
+                            label="Início do Ciclo" 
+                            value={formatDateTime(auditMetrics?.startTime)} 
+                        />
+                    </div>
+                    <div className="flex items-start gap-4">
+                        <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl shrink-0"><CalendarCheck size={16} strokeWidth={2.5} /></div>
+                        <TechnicalInfo 
+                            label="Conclusão Técnica" 
+                            value={formatDateTime(auditMetrics?.endTime)} 
+                        />
                     </div>
                 </div>
             </section>
+
+            <div className="pt-6 border-t border-slate-100 opacity-50">
+               <p className="text-[9px] font-black uppercase text-slate-400 tracking-[3px] text-center">Vital Cloud Protocol v4.2</p>
+            </div>
           </aside>
 
           <main className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/20">
             <div className="max-w-4xl mx-auto p-12">
               
-              {/* MENU DE ABAS SUPERIOR (Filtrado por Permissão) */}
+              {/* MENU DE ABAS */}
               <nav className="mb-10 flex items-center gap-1.5 bg-slate-200/50 p-1.5 rounded-[2rem] w-fit shadow-inner border border-slate-200/50" role="tablist">
                   <TabButton 
                     active={activeTab === 'workflow'} 
@@ -193,8 +225,6 @@ export const FileInspection: React.FC = () => {
                     label="Fluxo Operacional" 
                     role="tab"
                   />
-                  
-                  {/* Restrição de acesso à Nova Versão */}
                   {isQuality && (
                     <TabButton 
                         active={activeTab === 'new_version'} 
@@ -204,7 +234,6 @@ export const FileInspection: React.FC = () => {
                         role="tab"
                     />
                   )}
-
                   <TabButton 
                     active={activeTab === 'history'} 
                     onClick={() => setActiveTab('history')} 
@@ -292,9 +321,11 @@ const TabButton = ({ active, onClick, icon: Icon, label, role }: any) => (
   </button>
 );
 
-const TechnicalInfo = ({ label, value }: { label: string; value: string }) => (
+const TechnicalInfo = ({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) => (
   <div className="flex flex-col gap-1 overflow-hidden">
-    <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{label}</span>
+    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+        {label} {icon}
+    </span>
     <span className="text-sm font-bold text-slate-800 uppercase tracking-tight truncate leading-snug">{value}</span>
   </div>
 );
