@@ -1,12 +1,27 @@
-
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/layout/MainLayout.tsx';
-import { QualityOverview } from '../../components/features/quality/views/QualityOverview.tsx';
+import { useAuth } from '../../context/authContext.tsx';
 import { useTranslation } from 'react-i18next';
+import { QualityOverview } from '../../components/features/quality/views/QualityOverview.tsx';
+import { normalizeRole, UserRole } from '../../types/index.ts';
 import { Zap, ShieldCheck } from 'lucide-react';
 
+/**
+ * QualityDashboard Page
+ * Ponto de entrada técnico para analistas de qualidade.
+ */
 const QualityDashboard: React.FC = () => {
+  const { user } = useAuth();
   const { t } = useTranslation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const role = normalizeRole(user?.role);
+    if (user && role !== UserRole.QUALITY && role !== UserRole.ADMIN) {
+      navigate('/client/portal', { replace: true });
+    }
+  }, [user, navigate]);
 
   return (
     <Layout title="Centro de Operações Técnicas">
@@ -17,8 +32,8 @@ const QualityDashboard: React.FC = () => {
                   <Zap size={24} />
               </div>
               <div>
-                  <h1 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Painel de Comando Vital</h1>
-                  <p className="text-slate-500 text-sm font-medium tracking-tight italic">Operando sob protocolo Aços Vital SGQ v4.0.</p>
+                  <h1 className="text-3xl font-black text-slate-800 tracking-tighter uppercase">Painel de Comando Vital</h1>
+                  <p className="text-slate-500 text-sm font-medium tracking-tight italic opacity-70">Operando sob protocolo Aços Vital SGQ v4.0.</p>
               </div>
             </div>
             

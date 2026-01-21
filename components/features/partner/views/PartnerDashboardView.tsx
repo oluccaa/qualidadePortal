@@ -132,7 +132,7 @@ export const PartnerDashboardView: React.FC = () => {
                   <FileText size={24} />
                 </div>
                 <div>
-                  <p className="text-sm font-black text-slate-800 leading-tight uppercase tracking-tight">{file.name}</p>
+                  <p className="text-sm font-bold text-slate-800 leading-tight uppercase tracking-tight">{file.name}</p>
                   <div className="flex items-center gap-3 mt-1.5">
                     <span className="text-[10px] text-slate-400 font-bold font-mono bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">{file.size}</span>
                     <FileStatusBadge status={file.metadata?.status} />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckSquare, Square, Clock, HardDrive, Eye, Edit2, Trash2 } from 'lucide-react';
+import { CheckSquare, Square, Clock, HardDrive, Eye, Edit2, Trash2, FileText, Folder } from 'lucide-react';
 import { FileNode, FileType, UserRole } from '../../../../types/index.ts';
 import { FileStatusBadge } from './FileStatusBadge.tsx';
 
@@ -29,22 +29,27 @@ export const FileRow: React.FC<FileRowProps> = ({
       onClick={() => isFolder ? onNavigate(file.id) : onPreview(file)}
       title={isFolder ? "Explorar Pasta" : "Abrir Certificado"}
     >
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-3">
-          <span className={`text-[13px] tracking-tight uppercase transition-colors ${isSelected || isFolder ? 'font-bold text-slate-900' : 'font-medium text-slate-600 group-hover:text-slate-900'}`}>
-            {file.name}
-          </span>
-          {isViewed && !isFolder && (
-            <div className="flex items-center gap-1 text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100" title={`Visualizado pelo cliente`}>
-               <Eye size={10} strokeWidth={3} />
-               <span className="text-[8px] font-black uppercase">Visto</span>
-            </div>
-          )}
-          {!isFolder && file.metadata?.batchNumber && (
-            <span className="text-[8px] font-bold bg-slate-900 text-white px-1.5 py-0.5 rounded tracking-[2px]">
-              LOT: {file.metadata.batchNumber}
+      <div className="flex-1 min-w-0 flex items-center gap-4">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border border-slate-100 bg-slate-50 group-hover:bg-blue-50 transition-colors ${isSelected ? 'bg-blue-50 text-blue-600 border-blue-200' : 'text-slate-400'}`}>
+          {isFolder ? <Folder size={18} /> : <FileText size={18} />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3">
+            <span className={`text-[13px] tracking-tight uppercase transition-colors truncate ${isSelected || isFolder ? 'font-bold text-slate-900' : 'font-medium text-slate-600 group-hover:text-slate-900'}`}>
+              {file.name}
             </span>
-          )}
+            {isViewed && !isFolder && (
+              <div className="flex items-center gap-1 text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100" title={`Visualizado pelo cliente`}>
+                 <Eye size={10} strokeWidth={3} />
+                 <span className="text-[8px] font-black uppercase">Visto</span>
+              </div>
+            )}
+            {!isFolder && file.metadata?.batchNumber && (
+              <span className="text-[8px] font-bold bg-slate-900 text-white px-1.5 py-0.5 rounded tracking-[2px] hidden sm:inline-block">
+                LOT: {file.metadata.batchNumber}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

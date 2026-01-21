@@ -57,8 +57,8 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>((p
   };
 
   return (
-    <div className="absolute inset-0 overflow-y-auto custom-scrollbar bg-slate-50/50">
-      <div className="p-4 md:p-6 lg:p-8">
+    <div className="w-full h-full overflow-y-auto custom-scrollbar bg-slate-50/50">
+      <div className="p-4 md:p-6 lg:p-8 min-h-full">
         <div className="max-w-[1800px] mx-auto pb-40">
           {viewMode === 'list' ? (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -66,7 +66,6 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>((p
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
-              {/* Fix: Removed redundant and incorrect mapping that was incorrectly attempting to use a callback as a React component. FileGridView already handles mapping the files to FileCard components. */}
               <FileGridView {...viewProps} />
             </div>
           )}

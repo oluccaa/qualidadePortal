@@ -38,14 +38,12 @@ export const FileCard: React.FC<FileCardProps> = ({
       {/* 1. ZONA DE AÇÕES (TOPO) */}
       <div className="flex items-center justify-between p-3 shrink-0">
         <div className="flex items-center gap-2">
-            {isFolder ? (
-                <Folder size={16} className={isSelected ? 'text-blue-600' : 'text-slate-400'} />
-            ) : (
-                <FileText size={16} className={isSelected ? 'text-blue-600' : 'text-slate-400'} />
-            )}
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center border border-slate-100 bg-slate-50 group-hover:bg-blue-50 transition-colors ${isSelected ? 'bg-blue-50 text-blue-600 border-blue-200' : 'text-slate-400'}`}>
+                {isFolder ? <Folder size={18} /> : <FileText size={18} />}
+            </div>
             {isViewed && !isFolder && (
-                <div className="flex items-center text-blue-500" title="Visto pelo cliente">
-                    <Eye size={14} strokeWidth={2.5} />
+                <div className="flex items-center text-blue-500 bg-blue-50 p-1.5 rounded-lg border border-blue-100" title="Visto pelo cliente">
+                    <Eye size={12} strokeWidth={2.5} />
                 </div>
             )}
         </div>
