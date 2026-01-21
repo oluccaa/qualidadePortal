@@ -3,135 +3,204 @@ import { Layout } from '../../../layout/MainLayout.tsx';
 import { AuditWorkflow } from '../components/AuditWorkflow.tsx';
 import { ProcessingOverlay, QualityLoadingState } from '../components/ViewStates.tsx';
 import { useFileInspection } from '../hooks/useFileInspection.ts';
-import { 
-  AlertCircle, 
-  Database, 
-  ExternalLink, 
-  FileText, 
-  Terminal, 
-  ClipboardList, 
-  Users, 
-  Clock,
-  ShieldCheck,
-  History,
-  Lock,
-  Fingerprint
-} from 'lucide-react';
+import { ArrowLeft, AlertCircle, ShieldCheck, Database, ExternalLink, FileText, Info, Building2, Terminal, ClipboardList, Users, Clock } from 'lucide-react';
 import { QualityStatus, UserRole, normalizeRole } from '../../../../types/index.ts';
 
 export const FileInspection: React.FC = () => {
   const {
     inspectorFile, loadingFile, isProcessing,
     mainPreviewUrl, handleInspectAction, handleBackToClientFiles,
-    user, handleReplacementUpload
+    user
   } = useFileInspection();
 
   const role = normalizeRole(user?.role);
   const isQuality = role === UserRole.QUALITY || role === UserRole.ADMIN;
 
   if (loadingFile) {
-    return <QualityLoadingState message="Sincronizando Ledger..." />;
+    return <QualityLoadingState message="Sincronizando protocolos..." />;
   }
 
   if (!inspectorFile) {
     return (
       <Layout title="Erro de Carga">
-        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-4 h-full" role="alert">
-          <AlertCircle size={40} className="opacity-20" />
-          <p className="font-black uppercase tracking-widest text-[9px]">Ativo não localizado</p>
-          <button onClick={handleBackToClientFiles} className="px-5 py-2 bg-slate-900 text-white rounded-lg font-bold text-[9px] uppercase">Voltar</button>
+        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-4 h-full bg-slate-50" role="alert">
+          <AlertCircle size={48} className="opacity-20" />
+          <p className="font-bold uppercase tracking-widest text-[10px]">Ativo não localizado</p>
+          <button onClick={handleBackToClientFiles} className="px-6 py-2 bg-slate-900 text-white rounded-lg font-bold text-[10px] uppercase">Voltar</button>
         </div>
       </Layout>
     );
   }
 
+  // Definição de Tema por Role
   const theme = {
     headerBg: isQuality ? 'bg-[#132659]' : 'bg-slate-100',
     headerText: isQuality ? 'text-white' : 'text-slate-900',
     headerBorder: isQuality ? 'border-white/10' : 'border-slate-200',
     asideBg: isQuality ? 'bg-slate-50/50' : 'bg-white',
-    accentColor: isQuality ? 'text-blue-400' : 'text-emerald-600',
+    accentColor: isQuality ? 'text-blue-500' : 'text-emerald-600',
     accentBg: isQuality ? 'bg-blue-500/10' : 'bg-emerald-500/10'
   };
 
-  const hashValue = inspectorFile.storagePath?.split('/').pop()?.substring(0, 10).toUpperCase() || 'N/A';
+  const formatDateTime = (iso: string | undefined) => {
+    if (!iso) return '--';
+    return new Date(iso).toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+  };
+
+  const getOrganizationName = () => {
+      const org = inspectorFile.organizations;
+      const orgName = Array.isArray(org) ? org[0]?.name : org?.name;
+      const baseName = orgName || user?.organizationName || 'N/A';
+      
+      const repName = inspectorFile.metadata?.signatures?.step6_consolidation_client?.userName || 
+                     inspectorFile.metadata?.signatures?.step5_partner_verdict?.userName ||
+                     inspectorFile.metadata?.signatures?.step2_documental?.userName ||
+                     inspectorFile.metadata?.lastClientInteractionBy;
+
+      return repName ? `${baseName} (Rep: ${repName})` : baseName;
+  };
+
+  const storagePath = inspectorFile.storagePath || '';
+  const hashValue = storagePath.split('/').pop()?.substring(0, 12).toUpperCase() || 'N/A';
+
+  const calculateProgress = () => {
+    const meta = inspectorFile.metadata;
+    if (!meta) return 0;
+    if (meta.status === QualityStatus.APPROVED) return 100;
+
+    const sigs = meta.signatures || {};
+    let units = 0;
+    const totalUnits = 9;
+
+    if (sigs.step1_release) units += 1;
+    const s2Done = !!sigs.step2_documental;
+    const s3Done = !!sigs.step3_physical;
+    if (s2Done) units += (meta.documentalStatus === 'APPROVED' ? 2 : 1);
+    if (s3Done) units += (meta.physicalStatus === 'APPROVED' ? 2 : 1);
+    if (s2Done && s3Done) {
+      if (meta.documentalStatus === 'APPROVED' && meta.physicalStatus === 'APPROVED') units += 2;
+      else {
+        if (sigs.step4_contestation) units += 1;
+        if (sigs.step5_mediation_review) units += 1;
+      }
+    }
+    if (sigs.step6_system_log) units += 1;
+    if (sigs.step7_final_verdict) units += 1;
+
+    return Math.min(Math.round((units / totalUnits) * 100), 100);
+  };
 
   return (
-    <Layout title={isQuality ? "Inspeção Técnica" : "Conformidade"}>
-      <div className="flex-1 flex flex-col min-h-0 bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-xl animate-in fade-in duration-500">
-        {isProcessing && <ProcessingOverlay message="Sincronizando Ledger..." />}
+    <Layout title={isQuality ? "Painel de Auditoria" : "Central de Conformidade"}>
+      <div className={`flex-1 flex flex-col min-h-0 bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-sm animate-in fade-in duration-500`}>
+        {isProcessing && <ProcessingOverlay message="Atualizando Ledger Vital..." />}
 
-        <header className={`px-8 py-4 ${theme.headerBg} ${theme.headerText} flex items-center justify-between shrink-0 border-b ${theme.headerBorder}`}>
-          <div className="flex items-center gap-4">
-            <div className={`p-2.5 rounded-xl ${theme.accentBg} ${theme.accentColor}`}>
-                {isQuality ? <Terminal size={18} /> : <ClipboardList size={18} />}
-            </div>
-            <div className="space-y-0.5">
-              <h1 className="text-base font-black uppercase tracking-tight">
-                {isQuality ? "Console de Auditoria" : "Status do Ativo"}
-              </h1>
-              <p className="text-[8px] font-black uppercase tracking-[3px] opacity-50">
-                Cluster ID: {inspectorFile.id.split('-')[0].toUpperCase()}
+        {/* Dynamic Header */}
+        <header className={`px-8 py-5 ${theme.headerBg} ${theme.headerText} flex items-center justify-between shrink-0 border-b ${theme.headerBorder}`}>
+          <div className="flex items-center gap-6">
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <div className={`p-1.5 rounded-lg ${theme.accentBg} ${theme.accentColor}`}>
+                   {isQuality ? <Terminal size={18} /> : <ClipboardList size={18} />}
+                </div>
+                <h1 className="text-lg font-black uppercase tracking-tight">
+                  {isQuality ? "Terminal Técnico de Auditoria" : "Controle de Qualidade"}
+                </h1>
+              </div>
+              <p className={`text-[9px] font-bold uppercase tracking-widest opacity-60`}>
+                {isQuality ? `Protocolo SGQ • ID: ${inspectorFile.id.split('-')[0]}` : `Empresa: ${user?.organizationName}`}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-             <div className="hidden xl:flex items-center gap-3 bg-black/5 px-4 py-2 rounded-xl">
+             <div className={`${isQuality ? 'bg-white/5 border-white/10' : 'bg-slate-200/50 border-slate-300'} border px-4 py-2 rounded-xl flex items-center gap-3`}>
                 <FileText size={16} className={theme.accentColor} />
-                <p className="text-[10px] font-bold truncate max-w-[150px] uppercase tracking-tight">{inspectorFile.name}</p>
+                <div className="min-w-0">
+                  <p className={`text-[8px] font-black uppercase tracking-widest leading-none mb-0.5 ${isQuality ? 'text-slate-500' : 'text-slate-400'}`}>Dossier Selecionado</p>
+                  <p className={`text-[11px] font-bold truncate max-w-[180px] uppercase tracking-tight ${isQuality ? 'text-white' : 'text-slate-700'}`}>{inspectorFile.name}</p>
+                </div>
              </div>
+             
              {mainPreviewUrl && (
-                <button onClick={() => window.open(mainPreviewUrl!, '_blank')} className={`flex items-center gap-2 px-4 py-2 ${isQuality ? 'bg-blue-600' : 'bg-[#132659]'} text-white rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shadow-md`}>
-                  <ExternalLink size={12} /> Abrir Laudo
+                <button 
+                  onClick={() => window.open(mainPreviewUrl!, '_blank')} 
+                  className={`flex items-center gap-2 px-4 py-2 ${isQuality ? 'bg-blue-600 hover:bg-blue-500' : 'bg-[#132659] hover:bg-slate-800'} text-white rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95`}
+                >
+                  <ExternalLink size={12} /> Visualizar Laudo
                 </button>
              )}
           </div>
         </header>
 
         <div className="flex-1 flex overflow-hidden">
-          <aside className={`w-64 border-r border-slate-100 ${theme.asideBg} hidden lg:flex flex-col shrink-0 p-6 space-y-8 overflow-y-auto custom-scrollbar`}>
+          <aside className={`w-80 border-r border-slate-100 ${theme.asideBg} hidden lg:flex flex-col shrink-0 p-6 space-y-8 overflow-y-auto custom-scrollbar`}>
             
             <section className="space-y-4">
-                <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-[3px] flex items-center gap-2">
-                    <Database size={12} /> Ledger Info
+                <h3 className="text-[12px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <Database size={14} /> Rastreabilidade Ledger
                 </h3>
-                <div className="space-y-3">
-                    <TechnicalInfo label="Versão" value={`v${inspectorFile.versionNumber || 1}.0`} />
-                    <TechnicalInfo label="Hash" value={hashValue} isMono />
+                <div className="space-y-3 px-1">
+                    <TechnicalInfo label="Cluster ID" value={inspectorFile.id.split('-')[0].toUpperCase()} />
+                    <TechnicalInfo label="Versão do Ativo" value={`v${inspectorFile.versionNumber || 1}.0`} />
+                    <TechnicalInfo label="Hash de Origem" value={hashValue} />
                 </div>
             </section>
 
-            {inspectorFile.metadata?.versionHistory && inspectorFile.metadata.versionHistory.length > 0 && (
-                <section className="space-y-4">
-                    <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-[3px] flex items-center gap-2">
-                        <History size={12} /> Histórico
-                    </h3>
-                    <div className="space-y-1.5">
-                        {inspectorFile.metadata.versionHistory.map((v: any, idx: number) => (
-                            <div key={idx} className="p-2 bg-white border border-slate-100 rounded-lg flex items-center justify-between text-[9px] font-bold">
-                                <span className="text-slate-600">v{v.version}.0</span>
-                                <span className="text-slate-300 font-mono">{new Date(v.createdAt).toLocaleDateString()}</span>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-            )}
+            <section className="space-y-4">
+                <h3 className="text-[12px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <Users size={14} /> Partes Envolvidas
+                </h3>
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+                    <TechnicalInfo 
+                      label="Analista Responsável" 
+                      value={inspectorFile.metadata?.signatures?.step1_release?.userName || 'Aguardando Liberação'} 
+                    />
+                    
+                    <TechnicalInfo 
+                      label="Entidade Cliente" 
+                      value={getOrganizationName()} 
+                    />
 
-            <div className="pt-6 mt-auto flex flex-col items-center opacity-20">
-              <ShieldCheck size={24} className="text-slate-400 mb-1" />
-              <p className="text-[7px] font-black uppercase tracking-[4px]">Vital Secure v4.0</p>
+                    <div className="pt-4 border-t border-slate-100 grid grid-cols-1 gap-4">
+                      <div className="flex items-start gap-3">
+                         <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg"><Clock size={12}/></div>
+                         <TechnicalInfo 
+                            label="Início do Fluxo" 
+                            value={formatDateTime(inspectorFile.metadata?.signatures?.step1_release?.timestamp)} 
+                         />
+                      </div>
+                    </div>
+                </div>
+            </section>
+
+            <div className="pt-4 mt-auto opacity-20 text-center">
+              <img src="https://wtydnzqianhahiiasows.supabase.co/storage/v1/object/public/public_assets/hero/isotipo.png" className="h-5 mx-auto grayscale" alt="Vital" />
+              <p className="text-[7px] font-bold mt-2 text-slate-400 uppercase tracking-[4px]">VITAL ENGINE</p>
             </div>
           </aside>
 
-          <main className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/20">
-            <div className="max-w-3xl mx-auto p-8">
-              <header className="mb-8 flex items-center justify-between border-b border-slate-100 pb-4">
-                <h2 className="text-lg font-black text-[#132659] uppercase tracking-tight">Progresso da Auditoria</h2>
+          <main className="flex-1 overflow-y-auto custom-scrollbar bg-white">
+            <div className="max-w-4xl mx-auto p-10">
+              <header className="mb-8 flex items-end justify-between border-b border-slate-100 pb-5">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">
+                    {isQuality ? "Fluxo de Auditoria Técnica" : "Conformidade dos documentos"}
+                  </h2>
+                  <p className="text-[11px] font-medium text-slate-500 mt-1.5">
+                    {isQuality ? "Controle de transmissão e arbitragem de laudos." : "Verificação e aceite de certificados de qualidade."}
+                  </p>
+                </div>
                 <div className="text-right">
-                  <span className={`text-2xl font-black font-mono ${isQuality ? 'text-blue-600' : 'text-emerald-600'}`}>
-                    {metadataToProgress(inspectorFile.metadata)}%
+                  <span className={`text-2xl font-black font-mono tracking-tighter ${isQuality ? 'text-blue-600' : 'text-emerald-600'}`}>
+                    {calculateProgress()}%
                   </span>
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Processo</p>
                 </div>
               </header>
 
@@ -141,38 +210,10 @@ export const FileInspection: React.FC = () => {
                 userName={user?.name || ''}
                 userEmail={user?.email || ''}
                 fileId={inspectorFile.id}
-                onUpdate={handleInspectAction}
-                onUploadReplacement={handleReplacementUpload}
+                onUpdate={async (updates) => {
+                    await handleInspectAction(updates);
+                }}
               />
-
-              {isQuality && (
-                <section className="mt-12 pt-8 border-t border-dashed border-slate-200">
-                    <div className="flex items-center gap-3 mb-6">
-                        <Fingerprint size={20} className="text-slate-900" />
-                        <h3 className="text-sm font-black text-slate-900 uppercase">Rastreabilidade Forense</h3>
-                    </div>
-                    <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
-                        <table className="w-full text-left border-collapse text-[10px]">
-                            <thead className="bg-slate-50">
-                                <tr>
-                                    <th className="px-4 py-2 font-black text-slate-400 uppercase">Ação</th>
-                                    <th className="px-4 py-2 font-black text-slate-400 uppercase text-center">Timestamp</th>
-                                    <th className="px-4 py-2 font-black text-slate-400 uppercase text-right">Origem</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {Object.entries(inspectorFile.metadata?.signatures || {}).map(([key, sig]: [string, any]) => (
-                                    <tr key={key} className="hover:bg-slate-50">
-                                        <td className="px-4 py-3 font-bold text-slate-700">{key.replace('step', 'P').replace(/_/g, ' ')} • {sig.userName}</td>
-                                        <td className="px-4 py-3 text-center text-slate-400 font-mono">{new Date(sig.timestamp).toLocaleDateString()}</td>
-                                        <td className="px-4 py-3 text-right text-slate-300 font-mono">{sig.ip || '0.0.0.0'}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-              )}
             </div>
           </main>
         </div>
@@ -181,25 +222,9 @@ export const FileInspection: React.FC = () => {
   );
 };
 
-const metadataToProgress = (meta: any) => {
-    if (!meta) return 0;
-    if (meta.status === QualityStatus.APPROVED) return 100;
-    const sigs = meta.signatures || {};
-    let pts = 0;
-    if (sigs.step1_release) pts += 15;
-    if (sigs.step2_documental) pts += 15;
-    if (sigs.step3_physical) pts += 15;
-    if (sigs.step4_arbitrage) pts += 15;
-    if (sigs.step5_partner_verdict) pts += 15;
-    if (sigs.step6_consolidation_client || sigs.step6_consolidation_quality) pts += 15;
-    return Math.min(pts, 100);
-};
-
-const TechnicalInfo = ({ label, value, isMono = false }: any) => (
-  <div className="flex flex-col gap-0.5">
-    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
-    <span className={`text-[11px] font-bold text-slate-600 truncate ${isMono ? 'font-mono text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded inline-block w-fit' : ''}`}>
-      {value}
-    </span>
+const TechnicalInfo = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex flex-col gap-0.5 overflow-hidden">
+    <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">{label}</span>
+    <span className="text-[13px] font-bold text-slate-700 uppercase tracking-tight truncate">{value}</span>
   </div>
 );

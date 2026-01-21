@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Check, Key, Activity, FileText, ShieldCheck, 
-  Truck, Gavel, UserCheck, Lock, Award, AlertTriangle, XCircle,
-  MessageSquare, Eye, Plus, X, UploadCloud, RefreshCcw, Clock
+  Check, Key, Activity, FileText, ArrowRight, ShieldCheck, 
+  Truck, Gavel, UserCheck, Lock, Award, Mail, AlertTriangle, XCircle,
+  MessageSquare, Eye, User, Plus, X
 } from 'lucide-react';
 import { SteelBatchMetadata, QualityStatus, UserRole, AuditSignature } from '../../../../types/index.ts';
 import { useToast } from '../../../../context/notificationContext.tsx';
@@ -15,18 +15,17 @@ interface AuditWorkflowProps {
   userEmail: string;
   fileId: string;
   onUpdate: (updatedMetadata: Partial<SteelBatchMetadata>) => Promise<void>;
-  onUploadReplacement?: (file: File) => Promise<void>;
 }
 
 export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ 
-    metadata, userRole, userName, userEmail, fileId, onUpdate, onUploadReplacement 
+    metadata, userRole, userName, userEmail, fileId, onUpdate 
 }) => {
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [arbitrationText, setArbitrationText] = useState('');
   
+  // Estados Locais para Flags e Observações (Draft antes de assinar)
   const [docNotes, setDocNotes] = useState(metadata?.documentalNotes || '');
   const [docFlags, setDocFlags] = useState<string[]>(metadata?.documentalFlags || []);
   const [newDocFlag, setNewDocFlag] = useState('');
@@ -51,7 +50,6 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
   const isArbitrationNeeded = metadata?.documentalStatus === 'REJECTED' || metadata?.physicalStatus === 'REJECTED';
   const isStep4AutoCompleted = s2 && s3 && !isArbitrationNeeded;
   const isStep4Done = s4 || isStep4AutoCompleted;
-  const isRejected = metadata?.status === QualityStatus.REJECTED;
 
   const createSignature = (action: string): AuditSignature => ({
     userId: userName.replace(/\s+/g, '_').toLowerCase(),
@@ -59,8 +57,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
     userEmail: userEmail,
     userRole: userRole,
     timestamp: new Date().toISOString(),
-    action: action,
-    ip: '189.120.32.44'
+    action: action
   });
 
   const handleAction = async (stepKey: keyof SteelBatchMetadata['signatures'], updates: any) => {
@@ -68,193 +65,298 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
     try {
       const newSigs = { ...sigs, [stepKey]: createSignature(`SIGN_${stepKey.toUpperCase()}`) };
       await onUpdate({ ...updates, signatures: newSigs as any });
-      showToast(`Assinatura registrada.`, "success");
+      showToast(`Protocolo assinado com sucesso.`, "success");
     } catch (e) { 
-      showToast("Falha técnica na sincronização.", "error"); 
+      showToast("Erro na sincronização técnica.", "error"); 
     } finally { 
       setIsSyncing(false); 
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file && onUploadReplacement) {
-          setIsSyncing(true);
-          try {
-              await onUploadReplacement(file);
-              showToast("Versão substituída com sucesso.", "success");
-          } catch (err) {
-              showToast("Erro no upload.", "error");
-          } finally {
-              setIsSyncing(false);
-          }
-      }
+  const addFlag = (type: 'doc' | 'phys') => {
+    if (type === 'doc' && newDocFlag.trim()) {
+      setDocFlags([...docFlags, newDocFlag.trim()]);
+      setNewDocFlag('');
+    } else if (type === 'phys' && newPhysFlag.trim()) {
+      setPhysFlags([...physFlags, newPhysFlag.trim()]);
+      setNewPhysFlag('');
+    }
   };
 
-  const addFlag = (type: 'doc' | 'phys') => {
-    const val = type === 'doc' ? newDocFlag : newPhysFlag;
-    if (!val.trim()) return;
-    if (type === 'doc') { setDocFlags([...docFlags, val.trim()]); setNewDocFlag(''); }
-    else { setPhysFlags([...physFlags, val.trim()]); setNewPhysFlag(''); }
+  const removeFlag = (type: 'doc' | 'phys', index: number) => {
+    if (type === 'doc') setDocFlags(docFlags.filter((_, i) => i !== index));
+    else setPhysFlags(physFlags.filter((_, i) => i !== index));
   };
+
+  const isRejected = metadata?.status === QualityStatus.REJECTED;
+  const clientRep = sigs.step5_partner_verdict || sigs.step6_consolidation_client || sigs.step2_documental;
 
   return (
-    <div className="space-y-4 pb-20">
-        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".pdf" />
-
-        {/* 1. LIBERAÇÃO VITAL */}
+    <div className="space-y-6 pb-24">
+        
+        {/* 1. LIBERAÇÃO VITAL (SGQ) */}
         <StepCard step={1} title="1. Liberação Vital (SGQ)" completed={s1} active={!s1} signature={sigs.step1_release} icon={Key}>
           {isQuality && !s1 && (
-            <button onClick={() => handleAction('step1_release', { status: QualityStatus.SENT })} className="w-full py-3 bg-[#132659] text-white rounded-xl font-black text-[10px] uppercase tracking-[2px] shadow-md hover:bg-blue-900 transition-all">
-              {isSyncing ? <Activity className="animate-spin mx-auto" size={14}/> : "Autorizar Fluxo"}
+            <button 
+                onClick={() => handleAction('step1_release', { status: QualityStatus.SENT })} 
+                className="w-full py-4 bg-[#132659] text-white rounded-2xl font-black text-[10px] uppercase tracking-[3px] shadow-xl hover:bg-blue-900 transition-all flex items-center justify-center gap-3"
+            >
+              {isSyncing ? <Activity className="animate-spin" size={16}/> : "Autorizar Fluxo Industrial"}
             </button>
           )}
         </StepCard>
 
         {/* 2. CONFERÊNCIA DE DADOS */}
         <StepCard step={2} title="2. Conferência de Dados" completed={s2} active={s1 && !s2} signature={sigs.step2_documental} icon={FileText}>
-            <div className="space-y-3">
-                <button disabled={!s1} onClick={() => navigate(`/preview/${fileId}?mode=audit`)} className={`w-full py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${s1 ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-slate-50 text-slate-300 border-slate-100 opacity-50'}`}>
-                    <Eye size={14} /> Estação de Análise
-                </button>
+            <div className="space-y-5">
+                <div className="flex items-center gap-3">
+                    <button 
+                        disabled={!s1}
+                        onClick={() => navigate(`/preview/${fileId}?mode=audit`)} 
+                        className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                            s1 ? 'bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 shadow-sm' : 'bg-slate-50 text-slate-400 border border-slate-100 opacity-50'
+                        }`}
+                    >
+                        {isQuality && s2 ? <><Eye size={16} /> Ver Notas do Parceiro</> : <><FileText size={16} /> Estação de Anotação</>}
+                    </button>
+                </div>
 
-                {(isClient && s1 && !s2) || s2 ? (
-                    <div className="space-y-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                        <div className="flex flex-wrap gap-1.5">
-                            {(s2 ? (metadata?.documentalFlags || []) : docFlags).map((flag, idx) => (
-                                <span key={idx} className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-bold text-slate-600 uppercase">{flag}</span>
-                            ))}
-                            {isClient && !s2 && (
-                                <div className="flex gap-1 w-full">
-                                    <input type="text" placeholder="Tag..." className="flex-1 px-2 py-1 rounded border text-[10px] outline-none" value={newDocFlag} onChange={e => setNewDocFlag(e.target.value)} onKeyDown={e => e.key === 'Enter' && addFlag('doc')} />
-                                    <button onClick={() => addFlag('doc')} className="p-1.5 bg-blue-600 text-white rounded"><Plus size={12}/></button>
-                                </div>
-                            )}
+                {/* Flags e Notas - Disponíveis para Cliente (Edit) ou Quality (View) */}
+                {(isClient && s1 && !s2) || (s2) ? (
+                    <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-200 shadow-inner">
+                        <div className="space-y-2">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Flags de Auditoria</label>
+                            <div className="flex flex-wrap gap-2 mb-2">
+                                {(s2 ? (metadata?.documentalFlags || []) : docFlags).map((flag, idx) => (
+                                    <span key={idx} className="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-700">
+                                        {flag}
+                                        {isClient && !s2 && <button onClick={() => removeFlag('doc', idx)} className="text-red-400 hover:text-red-600"><X size={10}/></button>}
+                                    </span>
+                                ))}
+                                {isClient && !s2 && (
+                                    <div className="flex gap-1 w-full mt-2">
+                                        <input 
+                                            type="text" 
+                                            placeholder="Nova flag..." 
+                                            className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs outline-none focus:border-blue-500"
+                                            value={newDocFlag}
+                                            onChange={e => setNewDocFlag(e.target.value)}
+                                            onKeyDown={e => e.key === 'Enter' && addFlag('doc')}
+                                        />
+                                        <button onClick={() => addFlag('doc')} className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"><Plus size={14}/></button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        <textarea readOnly={s2 || !isClient} value={s2 ? (metadata?.documentalNotes || '') : docNotes} onChange={e => setDocNotes(e.target.value)} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-[11px] min-h-[60px] outline-none font-medium" placeholder="Notas do laudo..." />
+                        <div className="space-y-2">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações do Laudo</label>
+                            <textarea 
+                                readOnly={s2 || !isClient}
+                                value={s2 ? (metadata?.documentalNotes || '') : docNotes}
+                                onChange={e => setDocNotes(e.target.value)}
+                                className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs min-h-[80px] outline-none focus:ring-2 focus:ring-blue-500/10 font-medium"
+                                placeholder="Descreva observações técnicas sobre o documento..."
+                            />
+                        </div>
                     </div>
                 ) : null}
 
                 {isClient && s1 && !s2 && (
-                    <div className="grid grid-cols-2 gap-2">
-                        <button onClick={() => handleAction('step2_documental', { documentalStatus: 'APPROVED', documentalNotes: docNotes, documentalFlags: docFlags })} className="py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest">Conforme</button>
-                        <button onClick={() => handleAction('step2_documental', { documentalStatus: 'REJECTED', documentalNotes: docNotes, documentalFlags: docFlags })} className="py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest">Recusar</button>
-                    </div>
+                    <button 
+                        onClick={() => handleAction('step2_documental', { documentalStatus: 'APPROVED', documentalNotes: docNotes, documentalFlags: docFlags })}
+                        className="w-full py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+                    >
+                        Assinar Validação de Dados
+                    </button>
                 )}
             </div>
         </StepCard>
 
         {/* 3. VISTORIA DE CARGA */}
         <StepCard step={3} title="3. Vistoria de Carga" completed={s3} active={s1 && !s3} signature={sigs.step3_physical} icon={Truck}>
-            <div className="space-y-3">
-                {(isClient && s1 && !s3) || s3 ? (
-                    <div className="space-y-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                        <div className="flex flex-wrap gap-1.5">
-                            {(s3 ? (metadata?.physicalFlags || []) : physFlags).map((flag, idx) => (
-                                <span key={idx} className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-bold text-slate-600 uppercase">{flag}</span>
-                            ))}
+            <div className="space-y-5">
+                {(isClient && s1 && !s3) || (s3) ? (
+                    <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-200 shadow-inner">
+                        <div className="space-y-2">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Ocorrências Físicas (Flags)</label>
+                            <div className="flex flex-wrap gap-2 mb-2">
+                                {(s3 ? (metadata?.physicalFlags || []) : physFlags).map((flag, idx) => (
+                                    <span key={idx} className="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-700">
+                                        {flag}
+                                        {isClient && !s3 && <button onClick={() => removeFlag('phys', idx)} className="text-red-400 hover:text-red-600"><X size={10}/></button>}
+                                    </span>
+                                ))}
+                                {isClient && !s3 && (
+                                    <div className="flex gap-1 w-full mt-2">
+                                        <input 
+                                            type="text" 
+                                            placeholder="Nova flag física..." 
+                                            className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs outline-none focus:border-blue-500"
+                                            value={newPhysFlag}
+                                            onChange={e => setNewPhysFlag(e.target.value)}
+                                            onKeyDown={e => e.key === 'Enter' && addFlag('phys')}
+                                        />
+                                        <button onClick={() => addFlag('phys')} className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"><Plus size={14}/></button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        <textarea readOnly={s3 || !isClient} value={s3 ? (metadata?.physicalNotes || '') : physNotes} onChange={e => setPhysNotes(e.target.value)} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-[11px] min-h-[60px] outline-none font-medium" placeholder="Notas de vistoria..." />
+                        <div className="space-y-2">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações de Recebimento</label>
+                            <textarea 
+                                readOnly={s3 || !isClient}
+                                value={s3 ? (metadata?.physicalNotes || '') : physNotes}
+                                onChange={e => setPhysNotes(e.target.value)}
+                                className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs min-h-[80px] outline-none focus:ring-2 focus:ring-blue-500/10 font-medium"
+                                placeholder="Relate o estado físico do lote..."
+                            />
+                        </div>
                     </div>
                 ) : null}
+
                 {isClient && s1 && !s3 && (
-                    <div className="grid grid-cols-2 gap-2">
-                        <button onClick={() => handleAction('step3_physical', { physicalStatus: 'APPROVED', physicalNotes: physNotes, physicalFlags: physFlags })} className="py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest">Carga OK</button>
-                        <button onClick={() => handleAction('step3_physical', { physicalStatus: 'REJECTED', physicalNotes: physNotes, physicalFlags: physFlags })} className="py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase tracking-widest">Recusar</button>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button 
+                            onClick={() => handleAction('step3_physical', { physicalStatus: 'APPROVED', physicalNotes: physNotes, physicalFlags: physFlags })}
+                            className="py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg"
+                        >
+                            Aprovar Carga
+                        </button>
+                        <button 
+                            onClick={() => handleAction('step3_physical', { physicalStatus: 'REJECTED', physicalNotes: physNotes, physicalFlags: physFlags })}
+                            className="py-3 bg-red-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg"
+                        >
+                            Rejeitar Carga
+                        </button>
                     </div>
                 )}
             </div>
         </StepCard>
 
-        {/* 4. ARBITRAGEM */}
+        {/* 4. ARBITRAGEM TÉCNICA */}
         <StepCard step={4} title="4. Arbitragem Técnica" completed={isStep4Done} active={s2 && s3 && isArbitrationNeeded && !s4} signature={sigs.step4_arbitrage} icon={Gavel}>
-            <div className="space-y-3">
-                {isStep4AutoCompleted && !s4 && <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100 text-[10px] font-bold text-emerald-700 uppercase tracking-tight">Sem divergências técnicas.</div>}
+            <div className="space-y-4">
+                {isStep4AutoCompleted && !s4 && (
+                    <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3">
+                        <ShieldCheck size={18} className="text-emerald-600" />
+                        <p className="text-[10px] font-black text-emerald-800 uppercase tracking-tight">Conformidade Detectada: Sem necessidade de arbitragem.</p>
+                    </div>
+                )}
                 {isQuality && isArbitrationNeeded && !s4 && (
-                    <div className="space-y-2">
-                        <textarea className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] min-h-[60px] outline-none font-medium" placeholder="Mediação..." value={arbitrationText} onChange={e => setArbitrationText(e.target.value)} />
-                        <button onClick={() => handleAction('step4_arbitrage', { arbitrationNotes: arbitrationText })} className="w-full py-2.5 bg-[#132659] text-white rounded-lg font-black text-[9px] uppercase">Assinar Mediação</button>
+                    <div className="space-y-4">
+                        <textarea 
+                            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs min-h-[100px] outline-none focus:ring-4 focus:ring-blue-500/10 transition-all font-medium"
+                            placeholder="Descreva a contestação técnica ou justificativa de mediação..."
+                            value={arbitrationText}
+                            onChange={(e) => setArbitrationText(e.target.value)}
+                        />
+                        <button 
+                            disabled={!arbitrationText.trim() || isSyncing}
+                            onClick={() => handleAction('step4_arbitrage', { arbitrationNotes: arbitrationText })}
+                            className="w-full py-4 bg-[#132659] text-white rounded-2xl font-black text-[10px] uppercase tracking-[3px] shadow-xl"
+                        >
+                            {isSyncing ? <Activity className="animate-spin" size={16}/> : "Assinar Arbitragem Técnica"}
+                        </button>
                     </div>
                 )}
                 {s4 && metadata?.arbitrationNotes && (
-                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-100 text-[10px] text-blue-900 italic">"{metadata.arbitrationNotes}"</div>
+                    <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100 space-y-2">
+                        <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2"><MessageSquare size={12} /> Nota de Mediação:</p>
+                        <p className="text-xs text-blue-900 font-medium italic leading-relaxed">"{metadata.arbitrationNotes}"</p>
+                    </div>
                 )}
             </div>
         </StepCard>
 
-        {/* 5. VEREDITO PARCEIRO */}
+        {/* 5. VEREDITO DO PARCEIRO */}
         <StepCard step={5} title="5. Veredito do Parceiro" completed={s5} active={isStep4Done && !s5} signature={sigs.step5_partner_verdict} icon={UserCheck}>
-            {isClient && isStep4Done && !s5 && (
-                <div className="grid grid-cols-2 gap-2">
-                    <button onClick={() => handleAction('step5_partner_verdict', { status: QualityStatus.APPROVED })} className="py-2.5 bg-emerald-600 text-white rounded-lg font-black text-[9px] uppercase">Aceitar Lote</button>
-                    <button onClick={() => handleAction('step5_partner_verdict', { status: QualityStatus.REJECTED })} className="py-2.5 bg-red-600 text-white rounded-lg font-black text-[9px] uppercase">Rejeitar Lote</button>
-                </div>
-            )}
-            {s5 && (
-                <div className={`p-3 rounded-lg border flex items-center gap-3 ${metadata?.status === QualityStatus.APPROVED ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
-                    {metadata?.status === QualityStatus.APPROVED ? <Check size={14} /> : <XCircle size={14} />}
-                    <span className="text-[10px] font-black uppercase">{metadata?.status === QualityStatus.APPROVED ? 'Lote Homologado' : 'Lote Rejeitado'}</span>
-                </div>
-            )}
-        </StepCard>
-
-        {/* 6. CONSOLIDAÇÃO */}
-        <StepCard step={6} title="6. Consolidação Digital" completed={s6} active={s5 && !s6} icon={Lock}>
-            <div className="grid grid-cols-2 gap-2 mb-3">
-                <StatusSlot label="Cliente" signed={s6_c} />
-                <StatusSlot label="Qualidade" signed={s6_q} />
+            <div className="space-y-4">
+                {isClient && isStep4Done && !s5 && (
+                    <div className="grid grid-cols-2 gap-3">
+                        <button onClick={() => handleAction('step5_partner_verdict', { status: QualityStatus.APPROVED })} className="py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg">Aceitar Lote</button>
+                        <button onClick={() => handleAction('step5_partner_verdict', { status: QualityStatus.REJECTED })} className="py-3 bg-red-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg">Rejeitar Lote</button>
+                    </div>
+                )}
+                {s5 && (
+                    <div className={`p-4 rounded-2xl border flex items-center gap-4 ${metadata?.status === QualityStatus.APPROVED ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 ${metadata?.status === QualityStatus.APPROVED ? 'bg-emerald-100 border-emerald-200' : 'bg-red-100 border-red-200'}`}>
+                            {metadata?.status === QualityStatus.APPROVED ? <Check size={18} strokeWidth={4} /> : <XCircle size={18} strokeWidth={2.5} />}
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-tight opacity-70">Resultado do Veredito:</p>
+                            <p className="text-xs font-black uppercase tracking-widest">{metadata?.status === QualityStatus.APPROVED ? 'Lote Aceito' : 'Lote Rejeitado'}</p>
+                        </div>
+                    </div>
+                )}
             </div>
-            {s5 && !s6 && (
-                <>
-                    {isClient && !s6_c && <button onClick={() => handleAction('step6_consolidation_client', {})} className="w-full py-2 bg-slate-900 text-white rounded-lg font-black text-[9px] uppercase">Selo Cliente</button>}
-                    {isQuality && !s6_q && <button onClick={() => handleAction('step6_consolidation_quality', {})} className="w-full py-2 bg-slate-900 text-white rounded-lg font-black text-[9px] uppercase">Selo Qualidade</button>}
-                </>
-            )}
         </StepCard>
 
-        {/* 7. RESULTADO / SUBSTITUIÇÃO (RESTRITO AO QUALITY) */}
+        {/* 6. CONSOLIDAÇÃO DIGITAL */}
+        <StepCard step={6} title="6. Consolidação Digital" completed={s6} active={s5 && !s6} icon={Lock}>
+            <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                    <StatusSlot label="Representante Cliente" signed={s6_c} signature={sigs.step6_consolidation_client} />
+                    <StatusSlot label="Analista Qualidade" signed={s6_q} signature={sigs.step6_consolidation_quality} />
+                </div>
+                {s5 && !s6 && (
+                    <>
+                        {isClient && !s6_c && <button onClick={() => handleAction('step6_consolidation_client', {})} className="w-full py-3 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest">Assinar Selo (Cliente)</button>}
+                        {isQuality && !s6_q && <button onClick={() => handleAction('step6_consolidation_quality', {})} className="w-full py-3 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest">Assinar Selo (Qualidade)</button>}
+                    </>
+                )}
+            </div>
+        </StepCard>
+
+        {/* 7. PROTOCOLO VITAL CERTIFICADO (Otimizado) */}
         <StepCard step={7} title="7. Protocolo Vital Certificado" completed={s6} active={s6} icon={Award}>
             {s6 && (
-                <div className="animate-in fade-in duration-500">
+                <div className="animate-in fade-in zoom-in-95 duration-700">
                     {!isRejected ? (
-                        <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg border border-emerald-100">
-                            <ShieldCheck size={20} className="text-emerald-600" />
-                            <span className="text-[10px] font-black text-emerald-900 uppercase">Certificação Concluída</span>
+                        <div className="flex items-center gap-5 p-6 bg-emerald-50 rounded-2xl border border-emerald-100">
+                            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                                <ShieldCheck size={28} className="text-emerald-600 animate-bounce" />
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-black text-emerald-900 uppercase tracking-tight">Certificação Concluída</h4>
+                                <p className="text-[11px] text-emerald-700 font-medium">Lote homologado para utilização industrial.</p>
+                            </div>
                         </div>
                     ) : (
-                        <div className="space-y-3">
-                            {/* Mensagem de Reprovação para ambos */}
-                            <div className="p-3 bg-red-50 rounded-lg border border-red-100 flex items-center gap-2">
-                                <AlertTriangle size={14} className="text-red-600" />
-                                <span className="text-[10px] font-bold text-red-700 uppercase">Fluxo Encerrado com Reprovação</span>
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-4 p-5 bg-red-50 rounded-2xl border border-red-100">
+                                <AlertTriangle size={24} className="text-red-600 shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="text-xs font-black text-red-900 uppercase tracking-tight">Lote Rejeitado</h4>
+                                    <p className="text-[10px] text-red-700 font-medium leading-tight">
+                                        {isQuality 
+                                            ? "O parceiro entrará em contato para conciliação técnica." 
+                                            : "Divergência impeditiva detectada. Contate a Qualidade para conciliação."}
+                                    </p>
+                                </div>
                             </div>
 
-                            {/* Caso seja QUALITY: Mostrar zona de upload */}
-                            {isQuality && onUploadReplacement ? (
-                                <div className="space-y-2">
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Zona de Retificação Técnica</p>
-                                    <button onClick={() => fileInputRef.current?.click()} className="w-full p-4 border-2 border-dashed border-blue-200 rounded-xl hover:bg-blue-50 flex flex-col items-center gap-2 group transition-all">
-                                        <UploadCloud size={24} className="text-blue-400 group-hover:scale-110" />
-                                        <div className="text-center">
-                                            <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest block">Upar Substituição</span>
-                                            <span className="text-[8px] text-slate-400 font-bold uppercase">v{(metadata?.currentVersion || 1) + 1}.0</span>
+                            {isQuality && clientRep && (
+                                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                                    <header className="flex items-center gap-2 text-slate-400">
+                                        <User size={12} />
+                                        <span className="text-[9px] font-black uppercase tracking-widest">Intervenção de Gestão: Contato do Cliente</span>
+                                    </header>
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div className="min-w-0">
+                                            <p className="text-[11px] font-black text-slate-800 uppercase truncate">{clientRep.userName}</p>
+                                            <p className="text-[10px] text-blue-600 font-bold truncate lowercase">{clientRep.userEmail}</p>
                                         </div>
-                                    </button>
-                                </div>
-                            ) : isClient ? (
-                                /* Caso seja CLIENT: Mostrar mensagem de espera */
-                                <div className="p-5 bg-blue-50 border border-blue-100 rounded-2xl flex flex-col items-center text-center gap-3 animate-pulse">
-                                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 shadow-sm">
-                                        <Clock size={20} />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-black text-blue-900 uppercase tracking-tight">Aguardando Retificação Técnica</p>
-                                        <p className="text-[9px] text-blue-600 font-bold uppercase tracking-widest mt-1 leading-relaxed">
-                                            Uma nova versão deste laudo será disponibilizada <br/> em breve pela equipe de Qualidade da Vital.
-                                        </p>
+                                        <a href={`mailto:${clientRep.userEmail}`} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-blue-600 shadow-sm transition-all"><Mail size={14} /></a>
                                     </div>
                                 </div>
-                            ) : null}
+                            )}
+                            
+                            {!isQuality && (
+                                <div className="flex items-center justify-center gap-3 p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
+                                    <Mail size={12} className="text-red-400" />
+                                    <span className="text-[10px] font-mono font-bold text-slate-500">qualidade_adm@acosvital.com.br</span>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -264,31 +366,48 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
   );
 };
 
-const StatusSlot = ({ label, signed }: any) => (
-    <div className={`p-2 rounded-lg border text-center transition-all ${signed ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-200'}`}>
-        <p className="text-[7px] font-black text-slate-400 uppercase mb-1">{label}</p>
-        <span className={`text-[9px] font-black uppercase ${signed ? 'text-emerald-600' : 'text-slate-300'}`}>{signed ? 'OK' : '...'}</span>
+const StatusSlot = ({ label, signed, signature }: any) => (
+    <div className={`p-4 rounded-2xl border transition-all ${signed ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-200 opacity-50'}`}>
+        <p className="text-[8px] font-black text-slate-400 uppercase mb-2">{label}</p>
+        {signed ? (
+            <div className="flex items-center gap-2 text-emerald-600">
+                <Check size={14} strokeWidth={4} />
+                <span className="text-[10px] font-black uppercase tracking-tight">Assinado</span>
+            </div>
+        ) : (
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Pendente</span>
+        )}
+        {signature && <p className="text-[8px] text-slate-500 mt-1 truncate">{signature.userName}</p>}
     </div>
 );
 
 const StepCard = ({ title, active, completed, signature, children, icon: Icon }: any) => {
     const statusColor = completed ? 'bg-emerald-500' : active ? 'bg-[#132659]' : 'bg-slate-200';
     return (
-        <div className={`p-5 rounded-[1.5rem] border-2 transition-all ${active ? 'bg-white border-blue-100 shadow-md' : completed ? 'bg-white border-emerald-50 opacity-90' : 'bg-slate-50/50 border-slate-100 opacity-40 grayscale'}`}>
-            <div className="flex items-start gap-4">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${statusColor} text-white transition-colors`}>
-                    {completed ? <Check size={20} strokeWidth={4} /> : <Icon size={18} />}
+        <div className={`p-8 rounded-[2.5rem] border-2 transition-all duration-500 ${active ? 'bg-white border-blue-200 shadow-xl scale-[1.01]' : completed ? 'bg-white border-emerald-50 opacity-90' : 'bg-slate-50 border-slate-100 opacity-40 grayscale'}`}>
+            <div className="flex items-start gap-6">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border-4 border-white shadow-lg transition-colors ${statusColor} text-white`}>
+                    {completed ? <Check size={28} strokeWidth={4} /> : <Icon size={24} />}
                 </div>
-                <div className="flex-1 min-w-0">
-                    <header className="mb-2">
-                        <h3 className={`text-[13px] font-black uppercase tracking-tight ${active ? 'text-[#132659]' : completed ? 'text-slate-800' : 'text-slate-400'}`}>{title}</h3>
-                        <span className="text-[7px] font-black bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded uppercase tracking-widest">{completed ? 'VALIDADO' : active ? 'EM ANÁLISE' : 'AGUARDANDO'}</span>
+                <div className="flex-1 space-y-4 min-w-0">
+                    <header className="flex justify-between items-start">
+                        <div>
+                            <h3 className={`text-lg font-black uppercase tracking-tight ${active ? 'text-[#132659]' : completed ? 'text-slate-800' : 'text-slate-400'}`}>{title}</h3>
+                            <span className="text-[8px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded uppercase tracking-widest">{completed ? 'VALIDADO' : active ? 'EM ANÁLISE' : 'AGUARDANDO'}</span>
+                        </div>
+                        {completed && <ShieldCheck size={20} className="text-emerald-500" />}
                     </header>
-                    {children && <div className="animate-in fade-in slide-in-from-top-1 duration-300">{children}</div>}
+                    {children && <div className="animate-in fade-in slide-in-from-top-2 duration-500">{children}</div>}
                     {signature && (
-                        <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[8px] font-bold uppercase text-slate-400">
-                            <span className="truncate max-w-[150px]">{signature.userName}</span>
-                            <span className="font-mono">{new Date(signature.timestamp).toLocaleDateString()}</span>
+                        <div className="mt-4 p-5 bg-slate-50 rounded-3xl border border-slate-100 flex items-center justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-[7px] font-black text-slate-400 uppercase tracking-[3px] mb-1">Assinatura Digital Auditada:</p>
+                                <div className="flex flex-col"><p className="text-[11px] font-black text-slate-800 uppercase tracking-tight truncate">{signature.userName}</p><p className="text-[9px] text-blue-600 font-bold underline opacity-70 lowercase truncate">{signature.userEmail}</p></div>
+                            </div>
+                            <div className="text-right shrink-0">
+                                <p className="text-[9px] font-black text-slate-700 font-mono">{new Date(signature.timestamp).toLocaleDateString('pt-BR')}</p>
+                                <p className="text-[9px] font-black text-slate-400 font-mono">{new Date(signature.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} (SP)</p>
+                            </div>
                         </div>
                     )}
                 </div>

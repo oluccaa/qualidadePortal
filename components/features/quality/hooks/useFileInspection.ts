@@ -36,12 +36,9 @@ export const useFileInspection = () => {
 
       if (!data) throw new Error("Ativo não localizado no Ledger.");
 
-      // Fix: Aligned mapping with Domain FileNode for consistency across the application
       const file = {
         ...data,
         ownerId: data.owner_id,
-        parentId: data.parent_id,
-        versionNumber: data.version_number,
         type: data.type as FileType,
         updatedAt: data.updated_at,
         storagePath: data.storage_path,
@@ -92,39 +89,7 @@ export const useFileInspection = () => {
     }
   };
 
-  // Fix: Added handleReplacementUpload to handle document rectification flow when a file is rejected
-  const handleReplacementUpload = useCallback(async (newFileBlob: File) => {
-    if (!inspectorFile || !user || !inspectorFile.ownerId) return;
-    
-    setIsProcessing(true);
-    try {
-        const nextVersion = (inspectorFile.versionNumber || 1) + 1;
-        const newFileName = `v${nextVersion}_${inspectorFile.name.replace(/^v\d+_/, '')}`;
-        
-        const uploaded = await fileService.uploadFile(user, {
-            name: newFileName,
-            fileBlob: newFileBlob,
-            parentId: inspectorFile.parentId,
-            type: FileType.PDF,
-            size: `${(newFileBlob.size / 1024 / 1024).toFixed(2)} MB`,
-            mimeType: 'application/pdf'
-        }, inspectorFile.ownerId);
-
-        await fileService.updateFileMetadata(inspectorFile.id, {
-            replacementFileId: uploaded.id,
-            status: QualityStatus.SENT
-        });
-
-        await fetchDetails();
-        showToast(`Versão ${nextVersion} implementada com sucesso.`, "success");
-    } catch (e: any) {
-        showToast(`Falha no versionamento: ${e.message}`, "error");
-    } finally {
-        setIsProcessing(false);
-    }
-  }, [inspectorFile, user, fetchDetails, showToast]);
-
-  const handleUploadEvidence = useCallback(async (file: File) => {
+  const handleUploadEvidence = async (file: File) => {
     if (!inspectorFile || !user) return;
     setIsProcessing(true);
     try {
@@ -167,7 +132,7 @@ export const useFileInspection = () => {
     } finally {
         setIsProcessing(false);
     }
-  }, [inspectorFile, user, showToast]);
+  };
 
   return {
     inspectorFile,
@@ -176,7 +141,6 @@ export const useFileInspection = () => {
     mainPreviewUrl,
     handleInspectAction,
     handleUploadEvidence,
-    handleReplacementUpload,
     previewFile,
     setPreviewFile,
     user,
