@@ -19,7 +19,7 @@ export interface MechanicalProperties {
 export interface AuditSignature {
   userId: string;
   userName: string;
-  userEmail: string; // Obrigatório para rastreabilidade
+  userEmail: string; 
   userRole: string;
   timestamp: ISO8601Date;
   action: string;
@@ -68,14 +68,14 @@ export interface SteelBatchMetadata {
   auditStartTime?: ISO8601Date;
   auditDurationSeconds?: number;
   
-  // Protocolo Vital - 7 Passos
   signatures: {
     step1_release?: AuditSignature;
     step2_documental?: AuditSignature;
     step3_physical?: AuditSignature;
     step4_arbitrage?: AuditSignature;
     step5_partner_verdict?: AuditSignature;
-    step6_consolidation?: AuditSignature;
+    step6_consolidation_client?: AuditSignature; // Assinatura do Cliente
+    step6_consolidation_quality?: AuditSignature; // Assinatura da Qualidade
     step7_certification?: AuditSignature;
   };
 
@@ -86,9 +86,6 @@ export interface SteelBatchMetadata {
   documentalDrawings?: string; 
   physicalNotes?: string;
   
-  /**
-   * Fix: Added missing properties used in inspection workflows and snapshots
-   */
   documentalFlags?: string[];
   physicalFlags?: string[];
   physicalPhotos?: string[];
