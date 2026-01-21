@@ -1,3 +1,4 @@
+
 import { ID, ISO8601Date } from './common.ts';
 import { QualityStatus } from './enums.ts';
 
@@ -33,7 +34,7 @@ export interface FileVersion {
   note?: string;
 }
 
-export type AnnotationType = 'pencil' | 'marker' | 'rect' | 'circle' | 'eraser';
+export type AnnotationType = 'pencil' | 'marker' | 'rect' | 'circle' | 'eraser' | 'stamp';
 
 export interface NormalizedPoint {
   x: number;
@@ -49,6 +50,7 @@ export interface AnnotationItem {
   startPoint?: NormalizedPoint;
   endPoint?: NormalizedPoint;
   opacity?: number;
+  stampText?: 'APROVADO' | 'REJEITADO';
 }
 
 export type DocumentAnnotations = Record<number, AnnotationItem[]>;
@@ -67,7 +69,6 @@ export interface SteelBatchMetadata {
   auditStartTime?: ISO8601Date;
   auditDurationSeconds?: number;
   
-  // Fix: Added missing interaction tracking properties for audit trail
   lastClientInteractionAt?: ISO8601Date;
   lastClientInteractionBy?: string;
   lastInteractionAt?: ISO8601Date;
@@ -79,8 +80,8 @@ export interface SteelBatchMetadata {
     step3_physical?: AuditSignature;
     step4_arbitrage?: AuditSignature;
     step5_partner_verdict?: AuditSignature;
-    step6_consolidation_client?: AuditSignature; // Assinatura do Cliente
-    step6_consolidation_quality?: AuditSignature; // Assinatura da Qualidade
+    step6_consolidation_client?: AuditSignature;
+    step6_consolidation_quality?: AuditSignature;
     step7_certification?: AuditSignature;
   };
 
@@ -90,7 +91,7 @@ export interface SteelBatchMetadata {
   documentalNotes?: string;
   documentalDrawings?: string; 
   physicalNotes?: string;
-  arbitrationNotes?: string; // Novo campo para o passo 4
+  arbitrationNotes?: string;
   
   documentalFlags?: string[];
   physicalFlags?: string[];

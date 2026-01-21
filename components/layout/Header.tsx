@@ -6,12 +6,13 @@ import { Bell, ArrowLeft } from 'lucide-react';
 import { User, UserRole } from '../../types/index.ts';
 import { LanguageSelector } from '../features/auth/login/LanguageSelector.tsx'; 
 import { NotificationsDropdown } from '../features/notifications/NotificationsDropdown.tsx';
+import { useNotifications } from '../features/notifications/hooks/useNotifications.ts';
 
 interface HeaderProps {
   title: string;
   user: User | null;
   role: UserRole;
-  unreadCount: number;
+  unreadCount: number; // Mantido por compatibilidade, mas o hook local agora tem precedência
   onLogout: () => void;
   onOpenMobileMenu: () => void; 
   onNavigateBack: () => void; 
@@ -21,11 +22,12 @@ const LOGO_URL = "https://wtydnzqianhahiiasows.supabase.co/storage/v1/object/pub
 const CORPORATE_BLUE_FILTER = "brightness(0) saturate(100%) invert(8%) sepia(35%) saturate(5833%) hue-rotate(222deg) brightness(95%) contrast(106%)";
 
 export const Header: React.FC<HeaderProps> = ({ 
-  title, user, role, unreadCount, onOpenMobileMenu, onNavigateBack
+  title, user, role, onOpenMobileMenu, onNavigateBack
 }) => {
   const { t } = useTranslation();
   const location = useLocation();
-  const [isNotificationsDropdownOpen, setIsNotificationsDropdownOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const { unreadCount } = useNotifications(); // Sincronia perfeita
 
   const isDashboard = ['/admin/dashboard', '/quality/dashboard', '/client/portal'].includes(location.pathname.split('?')[0]);
 
@@ -46,15 +48,15 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-8">
           <LanguageSelector />
           
-          <div className="flex items-center gap-3 relative">
+          <div className="relative">
             <NotificationTrigger 
               count={unreadCount} 
-              className="text-slate-400 hover:text-slate-900 transition-colors" 
-              onClick={() => setIsNotificationsDropdownOpen(!isNotificationsDropdownOpen)}
+              active={isNotificationsOpen}
+              onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
             />
             <NotificationsDropdown 
-              isOpen={isNotificationsDropdownOpen} 
-              onClose={() => setIsNotificationsDropdownOpen(false)} 
+              isOpen={isNotificationsOpen} 
+              onClose={() => setIsNotificationsOpen(false)} 
             />
           </div>
         </div>
@@ -68,22 +70,40 @@ export const Header: React.FC<HeaderProps> = ({
           <img src={LOGO_URL} alt="Aços Vital" className="h-8" style={{ filter: CORPORATE_BLUE_FILTER }} />
         )}
 
-        <div className="flex items-center gap-1">
-            <NotificationTrigger count={unreadCount} className="text-slate-600" onClick={() => setIsNotificationsDropdownOpen(true)} />
-            <NotificationsDropdown isOpen={isNotificationsDropdownOpen} onClose={() => setIsNotificationsDropdownOpen(false)} />
+        <div className="flex items-center gap-1 relative">
+            <NotificationTrigger count={unreadCount} active={isNotificationsOpen} onClick={() => setIsNotificationsOpen(true)} />
+            <NotificationsDropdown isOpen={isNotificationsOpen} onClose={() => setIsNotificationsOpen(false)} />
         </div>
       </header>
     </>
   );
 };
 
-const NotificationTrigger = ({ count, className, onClick }: any) => (
-  <button onClick={onClick} className={`p-2 relative ${className}`}>
-    <Bell size={20} strokeWidth={2} />
+const NotificationTrigger = ({ count, active, onClick }: any) => (
+  <button 
+    onClick={onClick} 
+    className={`p-2.5 rounded-xl transition-all relative group overflow-visible ${
+        active ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'
+    }`}
+  >
+    <Bell size={20} strokeWidth={active ? 3 : 2.5} className={count > 0 && !active ? 'animate-swing' : ''} />
     {count > 0 && (
-      <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[8px] font-bold rounded-full border border-white flex items-center justify-center">
+      <span className={`absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-[9px] font-black rounded-full border-2 border-white transition-all
+        ${active ? 'bg-white text-blue-600 scale-110' : 'bg-red-500 text-white animate-bounce'}
+      `}>
         {count > 9 ? '9+' : count}
       </span>
     )}
+    
+    <style>{`
+        @keyframes swing {
+            0%, 100% { transform: rotate(0); }
+            20% { transform: rotate(15deg); }
+            40% { transform: rotate(-15deg); }
+            60% { transform: rotate(10deg); }
+            80% { transform: rotate(-10deg); }
+        }
+        .animate-swing { animation: swing 2s infinite ease-in-out; }
+    `}</style>
   </button>
 );

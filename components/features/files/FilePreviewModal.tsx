@@ -88,9 +88,11 @@ export const FilePreviewModal: React.FC<{
                 onPdfLoad={() => {}} 
                 isHandToolActive={activeTool === 'hand'}
                 renderOverlay={(w, h) => (
+                    /* Fix: Added missing lineWidth prop required by DrawingCanvasProps */
                     <DrawingCanvas 
                         tool={activeTool} 
                         color="#ef4444" 
+                        lineWidth={5}
                         width={w} 
                         height={h} 
                         pageAnnotations={annotations[pageNum] || []}
