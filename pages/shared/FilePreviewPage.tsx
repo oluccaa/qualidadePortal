@@ -4,13 +4,13 @@ import {
   ArrowLeft, Hand, Pencil, Highlighter, Square, Circle, 
   Eraser, Download, PlayCircle, Loader2, ChevronLeft, 
   ChevronRight, ZoomIn, ZoomOut, Plus, Save, Undo, Redo, 
-  Timer, FileCheck, Palette, FileOutput
+  FileCheck, FileOutput, ClipboardList
 } from 'lucide-react';
 import { useAuth } from '../../context/authContext.tsx';
 import { useFilePreview } from '../../components/features/files/hooks/useFilePreview.ts';
 import { PdfViewport } from '../../components/features/files/components/PdfViewport.tsx';
 import { DrawingCanvas, DrawingTool } from '../../components/features/files/components/DrawingCanvas.tsx';
-import { UserRole, normalizeRole, FileNode, DocumentAnnotations, AnnotationItem } from '../../types/index.ts';
+import { UserRole, normalizeRole, FileNode, DocumentAnnotations } from '../../types/index.ts';
 import { useToast } from '../../context/notificationContext.tsx';
 
 const COLORS = [
@@ -27,16 +27,16 @@ export const FilePreviewPage: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   
-  const mode = searchParams.get('mode');
+  // O modo 'audit' define se estamos na página própria para anotação
+  const isAuditMode = searchParams.get('mode') === 'audit';
+  
   const [activeTool, setActiveTool] = useState<DrawingTool>('hand');
   const [selectedColor, setSelectedColor] = useState('#ef4444');
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   const [numPages, setNumPages] = useState(0);
 
-  // Estados de Auditoria
-  const [isAuditActive, setIsAuditActive] = useState(false);
+  // Motor de Cronometria
   const [secondsElapsed, setSecondsElapsed] = useState(0);
-  // Fix: Replaced NodeJS.Timeout with any to avoid namespace error in browser environment
   const timerRef = useRef<any>(null);
 
   const [annotations, setAnnotations] = useState<DocumentAnnotations>({});
@@ -47,29 +47,23 @@ export const FilePreviewPage: React.FC = () => {
     handleDownload, handleUpdateMetadata, isSyncing
   } = useFilePreview(user, initialFileStub);
 
-  // Sincroniza anotações existentes do Ledger
+  // Sincroniza anotações e inicia cronômetro apenas no modo audit
   useEffect(() => {
     if (currentFile?.metadata?.documentalDrawings) {
       try {
         const saved = JSON.parse(currentFile.metadata.documentalDrawings);
         setAnnotations(saved);
-      } catch (e) {
-        console.error("Falha ao ler anotações:", e);
-      }
+      } catch (e) { console.error(e); }
     }
-  }, [currentFile?.id]);
 
-  // Gerenciamento do Cronômetro
-  useEffect(() => {
-    if (isAuditActive) {
-      timerRef.current = setInterval(() => {
-        setSecondsElapsed(prev => prev + 1);
-      }, 1000);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
+    if (isAuditMode) {
+        timerRef.current = setInterval(() => {
+            setSecondsElapsed(prev => prev + 1);
+        }, 1000);
     }
+
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [isAuditActive]);
+  }, [currentFile?.id, isAuditMode]);
 
   const formatTime = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
@@ -77,25 +71,20 @@ export const FilePreviewPage: React.FC = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleStartAudit = async () => {
-    setIsAuditActive(true);
-    // Persiste o início da auditoria no Ledger para fins estatísticos
-    // Fix: auditStartTime is now a valid property in SteelBatchMetadata
-    await handleUpdateMetadata({
-        auditStartTime: new Date().toISOString()
-    });
-    showToast("Auditoria iniciada. Ferramentas de anotação liberadas.", "info");
+  // Botão "INICIAR AUDITORIA" manda para o fluxo
+  const handleGoToWorkflow = () => {
+    navigate(`/quality/inspection/${fileId}`);
   };
 
-  const handleSaveAll = async () => {
+  const handleSaveAndReturn = async () => {
     if (!currentFile) return;
     try {
-        // Fix: auditDurationSeconds is now a valid property in SteelBatchMetadata
         await handleUpdateMetadata({ 
             documentalDrawings: JSON.stringify(annotations),
-            auditDurationSeconds: secondsElapsed
+            auditDurationSeconds: (currentFile.metadata?.auditDurationSeconds || 0) + secondsElapsed
         });
-        showToast("Progresso salvo com sucesso.", "success");
+        showToast("Progresso salvo. Retornando ao fluxo...", "success");
+        navigate(`/quality/inspection/${fileId}`);
     } catch (e) {
         showToast("Erro ao persistir no Ledger.", "error");
     }
@@ -109,26 +98,19 @@ export const FilePreviewPage: React.FC = () => {
     });
   };
 
-  const handleReturn = () => {
-    if (mode === 'audit') navigate(`/quality/inspection/${fileId}`);
-    else navigate(-1);
-  };
-
-  const isQuality = normalizeRole(user?.role) !== UserRole.CLIENT;
-
   return (
     <div className="h-screen w-screen bg-[#020617] flex flex-col overflow-hidden font-sans text-slate-200">
-      {/* Header com Ações Contextuais */}
+      {/* Header Dinâmico */}
       <header className="h-16 flex items-center justify-between px-6 bg-[#081437]/90 backdrop-blur-xl border-b border-white/5 z-20 shrink-0">
         <div className="flex items-center gap-4">
-          <button onClick={handleReturn} className="p-2 text-slate-400 hover:text-white transition-all bg-white/5 rounded-xl border border-white/5">
+          <button onClick={() => navigate(-1)} className="p-2 text-slate-400 hover:text-white transition-all bg-white/5 rounded-xl border border-white/5">
             <ArrowLeft size={20} />
           </button>
           <div className="min-w-0">
             <h2 className="text-white text-xs font-black uppercase tracking-[3px] truncate max-w-md">
               {currentFile?.name || "Sincronizando Ativo..."}
             </h2>
-            {isAuditActive && (
+            {isAuditMode && (
                 <div className="flex items-center gap-2 mt-0.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                     <span className="text-[10px] font-black text-red-400 font-mono tracking-widest">{formatTime(secondsElapsed)}</span>
@@ -138,17 +120,17 @@ export const FilePreviewPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-4">
-            {isAuditActive ? (
+            {isAuditMode ? (
                 <>
                     <button 
-                        onClick={handleSaveAll}
+                        onClick={handleSaveAndReturn}
                         disabled={isSyncing || !url}
-                        className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-[2px] flex items-center gap-2 transition-all"
+                        className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-[2px] flex items-center gap-2 transition-all shadow-lg active:scale-95"
                     >
-                        <Save size={14} /> Salvar
+                        <Save size={14} /> Salvar Alterações
                     </button>
-                    <button className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-[2px] flex items-center gap-2 transition-all">
-                        <FileOutput size={14} /> Exportar Notas
+                    <button className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-[2px] flex items-center gap-2 transition-all shadow-lg active:scale-95">
+                        <FileOutput size={14} /> Baixar com Notas
                     </button>
                 </>
             ) : (
@@ -163,14 +145,14 @@ export const FilePreviewPage: React.FC = () => {
         </div>
       </header>
 
-      {/* Viewport de PDF */}
+      {/* Viewport */}
       <div className="flex-1 relative overflow-hidden bg-[#020617]">
         {url ? (
           <PdfViewport 
             url={url} pageNum={pageNum} zoom={zoom} 
             onPdfLoad={setNumPages} 
             isHandToolActive={activeTool === 'hand'}
-            renderOverlay={isAuditActive ? (w, h) => (
+            renderOverlay={isAuditMode ? (w, h) => (
               <DrawingCanvas 
                 tool={activeTool} color={selectedColor} 
                 width={w} height={h} 
@@ -187,21 +169,21 @@ export const FilePreviewPage: React.FC = () => {
         )}
       </div>
 
-      {/* Floating Toolbar - Dinâmica por Estado */}
+      {/* Barra de Ferramentas Inferior - Contextual */}
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 bg-[#081437]/95 backdrop-blur-3xl border border-white/10 p-2.5 rounded-[2.5rem] shadow-[0_40px_80px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom-10">
         
-        {/* Bloco 1: Paginação (Sempre Visível) */}
+        {/* Bloco 1: Paginação (Sempre) */}
         <div className="flex items-center gap-2 bg-white/5 p-1 rounded-full border border-white/5 px-4">
           <button disabled={pageNum <= 1} onClick={() => setPageNum(pageNum - 1)} className="p-2 text-slate-400 hover:text-white disabled:opacity-20 transition-all"><ChevronLeft size={18} /></button>
           <span className="text-[10px] font-black text-blue-400 min-w-[50px] text-center tracking-[2px]">{pageNum} / {numPages || '--'}</span>
           <button disabled={pageNum >= numPages} onClick={() => setPageNum(pageNum + 1)} className="p-2 text-slate-400 hover:text-white disabled:opacity-20 transition-all"><ChevronRight size={18} /></button>
         </div>
 
-        {/* Bloco 2: Ferramentas (Contextuais) */}
+        {/* Bloco 2: Ferramentas de Auditoria */}
         <div className="flex items-center gap-1.5 px-1 border-r border-white/10">
           <ToolButton icon={Hand} active={activeTool === 'hand'} onClick={() => { setActiveTool('hand'); setShowToolsMenu(false); }} label="Mãozinha" />
           
-          {isAuditActive && (
+          {isAuditMode && (
             <>
               <div className="relative">
                 <button 
@@ -216,7 +198,7 @@ export const FilePreviewPage: React.FC = () => {
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 bg-[#081437] border border-white/10 p-3 rounded-[2rem] shadow-2xl flex flex-col gap-4 animate-in slide-in-from-bottom-4 min-w-[220px]">
                     <div className="flex flex-wrap justify-center gap-1">
                       <ToolButton icon={Pencil} active={activeTool === 'pencil'} onClick={() => { setActiveTool('pencil'); setShowToolsMenu(false); }} label="Lápis" />
-                      <ToolButton icon={Highlighter} active={activeTool === 'marker'} onClick={() => { setActiveTool('marker'); setShowToolsMenu(false); }} label="Marcador" />
+                      <ToolButton icon={Highlighter} active={activeTool === 'marker'} onClick={() => { setActiveTool('marker'); setShowToolsMenu(false); }} label="Grifo" />
                       <ToolButton icon={Square} active={activeTool === 'rect'} onClick={() => { setActiveTool('rect'); setShowToolsMenu(false); }} label="Retâng." />
                       <ToolButton icon={Circle} active={activeTool === 'circle'} onClick={() => { setActiveTool('circle'); setShowToolsMenu(false); }} label="Círc." />
                       <ToolButton icon={Eraser} active={activeTool === 'eraser'} onClick={() => { setActiveTool('eraser'); setShowToolsMenu(false); }} label="Borracha" />
@@ -231,30 +213,31 @@ export const FilePreviewPage: React.FC = () => {
                 )}
               </div>
               <ToolButton icon={Undo} onClick={handleUndo} label="Desfazer" disabled={(annotations[pageNum] || []).length === 0} />
+              <ToolButton icon={Redo} onClick={() => {}} label="Refazer" disabled />
             </>
           )}
         </div>
 
-        {/* Bloco 3: Zoom (Sempre Visível) */}
+        {/* Bloco 3: Zoom */}
         <div className="flex items-center gap-1 border-r border-white/10 pr-2">
           <ToolButton icon={ZoomOut} onClick={() => setZoom(Math.max(0.5, zoom - 0.2))} label="Z-" />
           <ToolButton icon={ZoomIn} onClick={() => setZoom(Math.min(3, zoom + 0.2))} label="Z+" />
         </div>
 
-        {/* Botão Principal Contextual */}
-        {!isAuditActive ? (
+        {/* Gatilho de Fluxo */}
+        {!isAuditMode ? (
            <button 
-            onClick={handleStartAudit}
-            className="ml-2 px-8 py-3 bg-[#b23c0e] hover:bg-orange-600 text-white rounded-full font-black text-[10px] uppercase tracking-[3px] shadow-xl active:scale-95 flex items-center gap-3"
+            onClick={handleGoToWorkflow}
+            className="ml-2 px-8 py-3 bg-[#b23c0e] hover:bg-orange-600 text-white rounded-full font-black text-[10px] uppercase tracking-[3px] shadow-xl active:scale-95 flex items-center gap-3 transition-all"
            >
               <PlayCircle size={18} /> INICIAR AUDITORIA
            </button>
         ) : (
            <button 
-            onClick={handleReturn}
-            className="ml-2 px-8 py-3 bg-white text-[#081437] hover:bg-blue-50 rounded-full font-black text-[10px] uppercase tracking-[3px] shadow-xl active:scale-95 flex items-center gap-3 border border-white/10"
+            onClick={handleSaveAndReturn}
+            className="ml-2 px-8 py-3 bg-white text-[#081437] hover:bg-blue-50 rounded-full font-black text-[10px] uppercase tracking-[3px] shadow-xl active:scale-95 flex items-center gap-3 border border-white/10 transition-all"
            >
-              <FileCheck size={18} className="text-blue-600" /> RETORNAR AO FLUXO
+              <ClipboardList size={18} className="text-blue-600" /> RETOMAR AUDITORIA
            </button>
         )}
       </div>
