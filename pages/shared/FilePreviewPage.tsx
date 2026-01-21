@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   ArrowLeft, Hand, Pencil, Highlighter, Square, Circle, 
   Eraser, Download, PlayCircle, Loader2, ChevronLeft, 
@@ -22,15 +22,16 @@ const COLORS = [
 export const FilePreviewPage: React.FC = () => {
   const { fileId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { showToast } = useToast();
   
+  const mode = searchParams.get('mode');
   const [activeTool, setActiveTool] = useState<DrawingTool>('hand');
   const [selectedColor, setSelectedColor] = useState('#ef4444');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [numPages, setNumPages] = useState(0);
 
-  // Estado das anotações em formato de dicionário de páginas
   const [annotations, setAnnotations] = useState<DocumentAnnotations>({});
 
   const initialFileStub = useMemo(() => ({ id: fileId } as FileNode), [fileId]);
@@ -47,7 +48,6 @@ export const FilePreviewPage: React.FC = () => {
     isSyncing
   } = useFilePreview(user, initialFileStub);
 
-  // Carrega as anotações iniciais vindas do banco de dados
   useEffect(() => {
     if (currentFile?.metadata?.documentalDrawings) {
       try {
@@ -90,16 +90,22 @@ export const FilePreviewPage: React.FC = () => {
     });
   };
 
+  const handleReturn = () => {
+    if (mode === 'audit') {
+        navigate(`/quality/inspection/${fileId}`);
+    } else {
+        navigate(-1);
+    }
+  };
+
   const role = normalizeRole(user?.role);
-  const isQuality = role === UserRole.QUALITY || role === UserRole.ADMIN;
 
   return (
     <div className="h-screen w-screen bg-[#020617] flex flex-col overflow-hidden font-sans">
-      {/* Header - Estilo Dark Premium */}
       <header className="h-16 flex items-center justify-between px-6 bg-[#081437]/95 backdrop-blur-xl border-b border-white/10 z-20">
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => navigate(-1)}
+            onClick={handleReturn}
             className="p-2 text-slate-400 hover:text-white transition-all bg-white/5 rounded-xl border border-white/10 active:scale-95"
           >
             <ArrowLeft size={20} />
@@ -130,7 +136,6 @@ export const FilePreviewPage: React.FC = () => {
         </div>
       </header>
 
-      {/* Viewport Area */}
       <div className="flex-1 relative overflow-hidden bg-[#020617]">
         {url ? (
           <PdfViewport 
@@ -159,10 +164,7 @@ export const FilePreviewPage: React.FC = () => {
         )}
       </div>
 
-      {/* BARRA DE FERRAMENTAS - FLUTUANTE */}
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 bg-[#081437]/95 backdrop-blur-3xl border border-white/10 p-2.5 rounded-[2.5rem] shadow-[0_40px_80px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom-10 duration-700">
-        
-        {/* Paginação */}
         <div className="flex items-center gap-2 bg-white/5 p-1 rounded-full border border-white/5 px-4">
           <button 
             disabled={pageNum <= 1 || !url}
@@ -183,7 +185,6 @@ export const FilePreviewPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Ferramentas Base */}
         <div className="flex items-center gap-1.5 px-1 border-r border-white/10">
           <ToolButton 
             icon={Hand} 
@@ -191,7 +192,6 @@ export const FilePreviewPage: React.FC = () => {
             onClick={() => setActiveTool('hand')} 
             label="Mão" 
           />
-          
           <div className="relative">
             {showMoreMenu && (
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 bg-[#081437] border border-white/10 p-2.5 rounded-[2rem] shadow-2xl flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-300">
@@ -233,15 +233,13 @@ export const FilePreviewPage: React.FC = () => {
           />
         </div>
 
-        {/* Zoom */}
         <div className="flex items-center gap-1">
           <ToolButton icon={ZoomOut} onClick={() => setZoom(Math.max(0.5, zoom - 0.2))} label="Zoom Out" disabled={!url} />
           <ToolButton icon={ZoomIn} onClick={() => setZoom(Math.min(3, zoom + 0.2))} label="Zoom In" disabled={!url} />
         </div>
 
-        {/* Iniciar Auditoria ou Voltar */}
         <button 
-            onClick={() => navigate(-1)}
+            onClick={handleReturn}
             disabled={!url}
             className="ml-2 px-8 py-3 bg-[#b23c0e] hover:bg-orange-600 text-white rounded-full font-black text-[10px] uppercase tracking-[3px] shadow-2xl active:scale-95 flex items-center gap-3 disabled:opacity-30 transition-all"
         >

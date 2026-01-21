@@ -1,4 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+
+import React, { ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, ShieldAlert, Copy, ChevronDown, ChevronUp, DatabaseZap } from 'lucide-react';
 
 interface Props {
@@ -17,8 +18,8 @@ interface State {
  * Proteção de última instância para falhas catastróficas.
  * Projetado para funcionar mesmo se o sistema de estilos ou tradução falhar.
  */
-// Fix: Using Component from 'react' and ensuring standard TypeScript inheritance
-export class ErrorBoundary extends Component<Props, State> {
+// Fix: Use React.Component for proper inheritance and access to members like setState and props
+export class ErrorBoundary extends React.Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null,
@@ -40,12 +41,12 @@ export class ErrorBoundary extends Component<Props, State> {
       timestamp: new Date().toISOString()
     });
     
-    // Fix: Updating state via inherited setState method
+    // Fix: Explicitly using setState from inherited React.Component (resolves Error line 44)
     this.setState({ errorInfo });
   }
 
   private handleSoftReset = () => {
-    // Fix: Accessing setState on this instance
+    // Fix: Explicitly using setState from inherited React.Component (resolves Error line 49)
     this.setState({ hasError: false, error: null, errorInfo: null });
     window.location.href = '/';
   };
@@ -68,7 +69,6 @@ Component Stack: ${this.state.errorInfo?.componentStack}
   };
 
   public render(): ReactNode {
-    // Fix: Accessing state on this instance
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 font-sans text-slate-300">
@@ -116,7 +116,7 @@ Component Stack: ${this.state.errorInfo?.componentStack}
 
                 <div className="w-full pt-6 border-t border-white/5">
                   <button 
-                    // Fix: Using setState correctly within an arrow function handler
+                    // Fix: Properly call setState using arrow function to preserve 'this' context and resolve property errors (resolves Error line 120)
                     onClick={() => this.setState({ showDetails: !this.state.showDetails })}
                     className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[3px] text-slate-500 hover:text-slate-300 transition-colors mx-auto"
                   >
@@ -165,7 +165,7 @@ Component Stack: ${this.state.errorInfo?.componentStack}
       );
     }
 
-    // Fix: Accessing children through inherited props property
+    // Fix: Access children via this.props which is now correctly recognized via React.Component inheritance (resolves Error line 169)
     return this.props.children;
   }
 }

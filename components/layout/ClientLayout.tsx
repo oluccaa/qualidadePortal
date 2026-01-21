@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -53,7 +52,6 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({ children, title, act
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <MaintenanceBanner status={system.status} isAdmin={role === UserRole.ADMIN} />
         
-        {/* Fix: Removed unsupported 'variant' prop to resolve TypeScript error as HeaderProps does not define it */}
         <Header 
           title={title} 
           user={user} 
@@ -64,8 +62,8 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({ children, title, act
           onNavigateBack={handleNavigateBack} 
         />
 
-        <main className="flex-1 overflow-hidden bg-slate-50 p-4 md:p-6 relative flex flex-col">
-          <div className="w-full h-full mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500 flex flex-col min-h-0">
+        <main className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 p-4 md:p-6 relative flex flex-col">
+          <div className="w-full mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500 flex flex-col">
             {children}
           </div>
         </main>

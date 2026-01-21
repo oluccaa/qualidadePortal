@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -72,7 +71,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title }) => {
         />
 
         <main className="flex-1 flex flex-col min-h-0 bg-transparent p-4 md:p-8 relative overflow-y-auto custom-scrollbar">
-          <div className="w-full max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-3 duration-700 flex flex-col min-h-0">
+          <div className="w-full max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-3 duration-700 flex flex-col">
             {children}
           </div>
         </main>

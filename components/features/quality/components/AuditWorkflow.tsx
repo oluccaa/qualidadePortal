@@ -41,6 +41,9 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
   const isAnalyst = userRole === UserRole.QUALITY || userRole === UserRole.ADMIN;
   const isClient = userRole === UserRole.CLIENT;
 
+  // Verifica se o documento já foi anotado/desenhado
+  const hasDrawings = !!metadata?.documentalDrawings && metadata.documentalDrawings !== '{}';
+
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
@@ -186,12 +189,11 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
           )}
         </StepCard>
 
-        {/* PASSO 2: CONFERÊNCIA DE DADOS - DESIGN REPLICADO DA IMAGEM */}
+        {/* PASSO 2: CONFERÊNCIA DE DADOS */}
         <div className={`p-10 rounded-[2.5rem] border-2 transition-all duration-500 relative bg-white shadow-sm
           ${currentStep === 2 ? 'border-blue-200' : 'border-slate-100 opacity-60'}`}>
           
           <div className="flex items-start gap-8">
-            {/* Step Number Circle */}
             <div className={`w-14 h-14 rounded-[1.2rem] flex items-center justify-center shrink-0 border-4 transition-all duration-700 shadow-xl
               ${!!metadata?.signatures?.step2_documental ? 'bg-emerald-500 border-white text-white' : 'bg-[#132659] border-white text-white'}`}>
               {!!metadata?.signatures?.step2_documental ? <Check size={28} strokeWidth={4} /> : <span className="font-black text-xl">2</span>}
@@ -215,12 +217,24 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                    </div>
                 </div>
                 <button 
+                  disabled={isAnalyst && !hasDrawings}
                   onClick={() => navigate(`/preview/${fileId}?mode=audit`)}
-                  className="px-8 py-3.5 bg-white border border-blue-200 text-blue-700 rounded-2xl text-[11px] font-black uppercase tracking-[2px] hover:bg-blue-600 hover:text-white transition-all shadow-sm flex items-center gap-3 active:scale-95"
+                  className={`px-8 py-3.5 border rounded-2xl text-[11px] font-black uppercase tracking-[2px] transition-all shadow-sm flex items-center gap-3 active:scale-95
+                    ${isAnalyst && !hasDrawings 
+                        ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed' 
+                        : 'bg-white border-blue-200 text-blue-700 hover:bg-blue-600 hover:text-white'}`}
                 >
                   {isAnalyst ? "REVISAR ANOTAÇÕES" : "CONFERIR E ANOTAR"} <ArrowRight size={16} />
                 </button>
               </div>
+
+              {/* Status "Aguardando" conforme imagem */}
+              {isAnalyst && !hasDrawings && !metadata?.signatures?.step2_documental && (
+                <div className="flex items-center gap-3 px-6 py-3 bg-slate-50 border border-slate-100 rounded-2xl w-fit animate-pulse">
+                   <Clock size={16} className="text-slate-400" />
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Aguardando conferência documental</span>
+                </div>
+              )}
 
               {/* Action Buttons for Client */}
               {isClient && currentStep === 2 && !metadata?.signatures?.step2_documental && !isRejectingStep2 && (
@@ -331,33 +345,11 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
           )}
         </StepCard>
 
-        {/* RESTANTE DO WORKFLOW (Passos 4 a 7) - Mantido Simplificado */}
-        <StepCard 
-          step={4} title="4. Arbitragem Técnica" desc="Análise Vital sobre divergências apontadas."
-          active={currentStep === 4} completed={currentStep > 4} signature={metadata?.signatures?.step4_contestation}
-        />
-        <StepCard 
-          step={5} title="5. Veredito do Parceiro" desc="Aceite ou recusa final da mediação."
-          active={currentStep === 5} completed={currentStep > 5} signature={metadata?.signatures?.step5_mediation_review}
-        />
-        <StepCard 
-          step={6} title="6. Consolidação Digital" desc="Assinatura eletrônica de encerramento."
-          active={currentStep === 6} completed={currentStep > 6} signature={metadata?.signatures?.step6_system_log}
-        />
-        <StepCard 
-          step={7} title="7. Protocolo Vital Certificado" desc="Auditoria concluída e arquivada."
-          active={currentStep === 7} completed={currentStep > 7} signature={metadata?.signatures?.step7_final_verdict}
-        >
-          {metadata?.status === QualityStatus.APPROVED && (
-              <div className="p-6 bg-emerald-50 text-emerald-700 border-emerald-100 rounded-2xl border flex items-center gap-6 shadow-inner animate-in zoom-in-95">
-                  <ShieldCheck size={32} />
-                  <div>
-                    <p className="text-sm font-black uppercase">Qualidade Validada</p>
-                    <p className="text-[9px] font-bold opacity-60 uppercase mt-0.5">Certificado v4.0 Ativo</p>
-                  </div>
-              </div>
-          )}
-        </StepCard>
+        {/* RESTANTE DO WORKFLOW */}
+        <StepCard step={4} title="4. Arbitragem Técnica" desc="Análise Vital sobre divergências apontadas." active={currentStep === 4} completed={currentStep > 4} signature={metadata?.signatures?.step4_contestation} />
+        <StepCard step={5} title="5. Veredito do Parceiro" desc="Aceite ou recusa final da mediação." active={currentStep === 5} completed={currentStep > 5} signature={metadata?.signatures?.step5_mediation_review} />
+        <StepCard step={6} title="6. Consolidação Digital" desc="Assinatura eletrônica de encerramento." active={currentStep === 6} completed={currentStep > 6} signature={metadata?.signatures?.step6_system_log} />
+        <StepCard step={7} title="7. Protocolo Vital Certificado" desc="Auditoria concluída e arquivada." active={currentStep === 7} completed={currentStep > 7} signature={metadata?.signatures?.step7_final_verdict} />
     </div>
   );
 };
