@@ -1,13 +1,15 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Check, Key, Activity, FileText, ArrowRight, ShieldCheck, 
   Truck, Gavel, UserCheck, Lock, Award, Mail, AlertTriangle, XCircle,
-  MessageSquare, Eye, User, Plus, X, Clock
+  MessageSquare, Eye, User, Plus, X, Clock, Camera, Image as ImageIcon,
+  Loader2
 } from 'lucide-react';
 import { SteelBatchMetadata, QualityStatus, UserRole, AuditSignature } from '../../../../types/index.ts';
 import { useToast } from '../../../../context/notificationContext.tsx';
+import { fileService } from '../../../../lib/services/index.ts';
 
 interface AuditWorkflowProps {
   metadata: SteelBatchMetadata | undefined;
@@ -16,10 +18,11 @@ interface AuditWorkflowProps {
   userEmail: string;
   fileId: string;
   onUpdate: (updatedMetadata: Partial<SteelBatchMetadata>) => Promise<void>;
+  onUploadStepEvidence?: (file: File, step: 'documental' | 'physical') => Promise<void>;
 }
 
 export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ 
-    metadata, userRole, userName, userEmail, fileId, onUpdate 
+    metadata, userRole, userName, userEmail, fileId, onUpdate, onUploadStepEvidence 
 }) => {
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -74,8 +77,6 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
   };
 
   const handleNavigateToPreview = () => {
-      // Regra: Se o passo 2 não acabou e é cliente, abre modo edição. 
-      // Se o passo acabou ou é qualidade, abre modo leitura de notas.
       const mode = (!s2 && isClient) ? '?mode=audit' : '?notes=true';
       navigate(`/preview/${fileId}${mode}`);
   };
@@ -133,13 +134,25 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                     className={`w-full py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${
                         s1 ? 'bg-blue-50 text-blue-700 border-2 border-blue-200 hover:bg-blue-100 shadow-sm' : 'bg-slate-50 text-slate-400 border border-slate-200 opacity-50 cursor-not-allowed'
                     }`}
-                    aria-label="Abrir estação de anotação de documentos"
                 >
                     {s2 ? <><Eye size={18} /> Visualizar Notas (Leitura)</> : <><FileText size={18} /> Estação de Anotação Técnica</>}
                 </button>
 
                 {((isClient && s1 && !s2) || (s2)) && (
-                    <div className="space-y-5 p-6 bg-slate-50 rounded-2xl border-2 border-slate-200 shadow-inner">
+                    <div className="space-y-6 p-6 bg-slate-50 rounded-2xl border-2 border-slate-200 shadow-inner">
+                        <div className="space-y-3">
+                            <label className="text-xs font-black text-slate-600 uppercase tracking-widest ml-1">Anexar Documentação Digitalizada</label>
+                            <p className="text-[10px] text-slate-400 font-medium leading-relaxed mb-3">
+                                Utilize este campo se imprimiu o documento para anotar à mão ou se possui um comprovante adicional de divergência.
+                            </p>
+                            <EvidenceUploadArea 
+                              step="documental" 
+                              photos={metadata?.documentalPhotos} 
+                              disabled={s2 || !isClient}
+                              onUpload={onUploadStepEvidence}
+                            />
+                        </div>
+
                         <div className="space-y-3">
                             <label className="text-xs font-black text-slate-600 uppercase tracking-widest ml-1">Flags de Auditoria</label>
                             <div className="flex flex-wrap gap-2">
@@ -166,7 +179,6 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                                         <button 
                                           onClick={() => addFlag('doc')} 
                                           className="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-md active:scale-95 transition-all"
-                                          aria-label="Adicionar flag"
                                         >
                                           <Plus size={18} strokeWidth={3} />
                                         </button>
@@ -206,7 +218,21 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
         >
             <div className="space-y-6">
                 {((isClient && s1 && !s3) || (s3)) && (
-                    <div className="space-y-5 p-6 bg-slate-50 rounded-2xl border-2 border-slate-200 shadow-inner">
+                    <div className="space-y-6 p-6 bg-slate-50 rounded-2xl border-2 border-slate-200 shadow-inner">
+                        
+                        <div className="space-y-3">
+                            <label className="text-xs font-black text-slate-600 uppercase tracking-widest ml-1">Galeria de Campo (Fotos/Documentos)</label>
+                            <p className="text-[10px] text-slate-400 font-medium leading-relaxed mb-3">
+                                Anexe aqui fotos da carga recebida, lacres ou documentos que acompanharam o transporte (Danfe, Romaneio).
+                            </p>
+                            <EvidenceUploadArea 
+                                step="physical" 
+                                photos={metadata?.physicalPhotos} 
+                                disabled={s3 || !isClient}
+                                onUpload={onUploadStepEvidence}
+                            />
+                        </div>
+
                         <div className="space-y-3">
                             <label className="text-xs font-black text-slate-600 uppercase tracking-widest ml-1">Estado Físico (Flags de Recebimento)</label>
                             <div className="flex flex-wrap gap-2">
@@ -233,7 +259,6 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                                         <button 
                                           onClick={() => addFlag('phys')} 
                                           className="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-md transition-all"
-                                          aria-label="Adicionar flag física"
                                         >
                                           <Plus size={18} strokeWidth={3} />
                                         </button>
@@ -388,7 +413,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
 
                             {isQuality && clientRep && (
                                 <div className="p-6 bg-white border-2 border-slate-200 rounded-[2rem] space-y-4 shadow-sm">
-                                    <header className="flex items-center gap-2 text-slate-500">
+                                    <header className="flex items-center gap-2 text-slate-50">
                                         <User size={16} />
                                         <span className="text-[11px] font-black uppercase tracking-widest">Contato do Parceiro (Representante)</span>
                                     </header>
@@ -400,7 +425,6 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                                         <a 
                                           href={`mailto:${clientRep.userEmail}`} 
                                           className="p-3.5 bg-slate-100 border-2 border-slate-200 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-all shadow-sm"
-                                          aria-label={`Enviar e-mail para ${clientRep.userName}`}
                                         >
                                           <Mail size={18} strokeWidth={2.5} />
                                         </a>
@@ -416,7 +440,81 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
   );
 };
 
-/* --- SUB-COMPONENTES AUXILIARES (Acessibilidade) --- */
+/* --- COMPONENTES AUXILIARES --- */
+
+/**
+ * Área de Upload de Evidências Visual com Galeria
+ */
+const EvidenceUploadArea: React.FC<{ 
+    step: 'documental' | 'physical', 
+    photos?: string[], 
+    disabled: boolean,
+    onUpload?: (file: File, step: 'documental' | 'physical') => Promise<void>
+}> = ({ step, photos = [], disabled, onUpload }) => {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [isUploading, setIsUploading] = useState(false);
+
+    const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !onUpload) return;
+        setIsUploading(true);
+        try {
+            await onUpload(file, step);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex flex-wrap gap-3">
+                {photos.map((path, i) => (
+                    <ThumbnailItem key={i} path={path} />
+                ))}
+                
+                {!disabled && (
+                    <button 
+                        onClick={() => inputRef.current?.click()}
+                        disabled={isUploading}
+                        className="w-20 h-20 bg-white border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:border-blue-400 hover:text-blue-500 transition-all shadow-sm group"
+                    >
+                        <input type="file" ref={inputRef} className="hidden" accept="image/*" onChange={handleFile} />
+                        {isUploading ? <Loader2 size={18} className="animate-spin" /> : <Camera size={20} className="group-hover:scale-110 transition-transform" />}
+                        <span className="text-[7px] font-black uppercase mt-1">Anexar</span>
+                    </button>
+                )}
+
+                {photos.length === 0 && disabled && (
+                    <div className="w-full py-4 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-300 grayscale opacity-50">
+                        <ImageIcon size={24} />
+                        <span className="text-[8px] font-black uppercase mt-1">Sem Imagens Anexadas</span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const ThumbnailItem: React.FC<{ path: string }> = ({ path }) => {
+    const [signedUrl, setSignedUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        fileService.getSignedUrl(path).then(setSignedUrl);
+    }, [path]);
+
+    if (!signedUrl) return <div className="w-20 h-20 bg-slate-100 animate-pulse rounded-xl" />;
+
+    return (
+        <a 
+            href={signedUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="w-20 h-20 rounded-xl border-2 border-white shadow-md overflow-hidden hover:scale-105 hover:rotate-2 transition-all block ring-2 ring-transparent hover:ring-blue-400"
+        >
+            <img src={signedUrl} alt="Evidência" className="w-full h-full object-cover" />
+        </a>
+    );
+};
 
 const StatusSlot = ({ label, signed, signature }: any) => (
     <div className={`p-5 rounded-2xl border-2 transition-all ${signed ? 'bg-emerald-50 border-emerald-200 shadow-sm' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
@@ -451,8 +549,6 @@ const StepCard = ({ title, active, completed, signature, children, icon: Icon, s
               ? 'bg-white shadow-2xl border-opacity-40 scale-[1.02] ring-8 ring-blue-500/5' 
               : completed ? 'bg-white border-opacity-100 opacity-100' : 'bg-slate-100 border-opacity-0 opacity-40 grayscale pointer-events-none'
           } ${borderClass}`}
-          aria-current={active ? 'step' : undefined}
-          role="listitem"
         >
             <div className="flex items-start gap-8">
                 <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shrink-0 border-4 border-white shadow-xl transition-all duration-500 ${statusColor} text-white`}>
@@ -482,7 +578,7 @@ const StepCard = ({ title, active, completed, signature, children, icon: Icon, s
                     )}
 
                     {signature && (
-                        <div className="mt-6 p-6 bg-slate-50 rounded-[2rem] border-2 border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-6 shadow-inner" role="status" aria-label="Informações da assinatura digital">
+                        <div className="mt-6 p-6 bg-slate-50 rounded-[2rem] border-2 border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-6 shadow-inner">
                             <div className="flex-1 min-w-0">
                                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-[3px] mb-2">Assinatura Digital Auditada:</p>
                                 <div className="space-y-0.5">

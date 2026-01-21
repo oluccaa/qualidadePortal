@@ -30,16 +30,11 @@ export const PdfViewport: React.FC<PdfViewportProps> = ({
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   
   const renderTaskRef = useRef<any>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Limpeza de memória
   const cleanup = useCallback(() => {
     if (renderTaskRef.current) {
       try { renderTaskRef.current.cancel(); } catch (e) {}
       renderTaskRef.current = null;
-    }
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
     }
   }, []);
 
@@ -128,29 +123,27 @@ export const PdfViewport: React.FC<PdfViewportProps> = ({
     renderPage(); 
   }, [renderPage]);
 
-  // LOGICA DE ZOOM VIA MOUSE WHEEL
-  const handleWheel = useCallback((e: React.WheelEvent) => {
+  // LOGICA DE ZOOM VIA MOUSE WHEEL (RODA DO MOUSE)
+  const handleWheel = (e: React.WheelEvent) => {
     if (!onZoomChange) return;
     
-    // Se o usuário estiver scrollando com a mãozinha ou apenas no container
-    // mas não queremos que o scroll padrão de página interfira na precisão
-    // e.preventDefault(); // Comentado para permitir scroll natural se não houver zoom
+    // Previne o scroll padrão da página para focar no zoom
+    e.preventDefault();
 
-    const zoomStep = 0.1;
-    if (e.deltaY < 0) {
-      // Scroll UP -> Zoom IN
-      onZoomChange(Math.min(5, zoom + zoomStep));
-    } else {
-      // Scroll DOWN -> Zoom OUT
-      onZoomChange(Math.max(0.2, zoom - zoomStep));
-    }
-  }, [zoom, onZoomChange]);
+    const zoomStep = 0.15;
+    const direction = e.deltaY < 0 ? 1 : -1;
+    const newZoom = zoom + (direction * zoomStep);
+    
+    // Limita o zoom entre 20% e 500%
+    onZoomChange(Math.max(0.2, Math.min(5, newZoom)));
+  };
 
-  // LOGICA DE PANNING (Mãozinha)
+  // LOGICA DE PANNING (Mãozinha para arrastar o documento)
   const [drag, setDrag] = useState({ isDragging: false, x: 0, y: 0, scrollL: 0, scrollT: 0 });
   
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (!isHandToolActive || !containerRef.current) return;
+    // Só inicia o drag se a ferramenta de mão estiver ativa OU se for o botão do meio do mouse
+    if ((!isHandToolActive && e.button !== 1) || !containerRef.current) return;
     
     setDrag({
       isDragging: true, 
@@ -162,18 +155,21 @@ export const PdfViewport: React.FC<PdfViewportProps> = ({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!drag.isDragging || !containerRef.current || !isHandToolActive) return;
+    if (!drag.isDragging || !containerRef.current) return;
     
-    // Calcula o deslocamento e aplica ao scroll do container
+    // Calcula o deslocamento (delta) do mouse
     const dx = e.clientX - drag.x;
     const dy = e.clientY - drag.y;
     
+    // Aplica o deslocamento inverso ao scroll para dar a sensação de "empurrar" o papel
     containerRef.current.scrollLeft = drag.scrollL - dx;
     containerRef.current.scrollTop = drag.scrollT - dy;
   };
 
   const handleMouseUp = () => {
-    setDrag(d => ({ ...d, isDragging: false }));
+    if (drag.isDragging) {
+      setDrag(d => ({ ...d, isDragging: false }));
+    }
   };
 
   return (
@@ -184,16 +180,28 @@ export const PdfViewport: React.FC<PdfViewportProps> = ({
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
-      className={`flex-1 overflow-auto bg-[#020617] relative custom-scrollbar flex justify-center items-start p-12 select-none focus:outline-none transition-all duration-75 ${
-        isHandToolActive ? (drag.isDragging ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default'
+      className={`flex-1 overflow-auto bg-[#020617] relative custom-scrollbar flex justify-center items-start p-12 select-none outline-none transition-colors duration-200 ${
+        isHandToolActive 
+          ? (drag.isDragging ? 'cursor-grabbing' : 'cursor-grab') 
+          : 'cursor-default'
       }`}
+      style={{ touchAction: 'none' }}
     >
       <div 
         className="relative shadow-[0_60px_120px_rgba(0,0,0,0.7)] bg-white transition-opacity duration-500"
-        style={{ width: dimensions.width || 'auto', height: dimensions.height || 'auto', opacity: dimensions.width ? 1 : 0 }}
+        style={{ 
+          width: dimensions.width || 'auto', 
+          height: dimensions.height || 'auto', 
+          opacity: dimensions.width ? 1 : 0,
+          pointerEvents: isHandToolActive ? 'none' : 'auto' 
+        }}
       >
         <canvas ref={canvasRef} style={{ width: dimensions.width, height: dimensions.height }} />
-        {dimensions.width > 0 && renderOverlay && renderOverlay(dimensions.width, dimensions.height)}
+        
+        {/* Camada de Overlay para anotações (desativada quando arrastando com a mão) */}
+        <div className={`absolute inset-0 z-10 ${isHandToolActive ? 'pointer-events-none' : 'pointer-events-auto'}`}>
+          {dimensions.width > 0 && renderOverlay && renderOverlay(dimensions.width, dimensions.height)}
+        </div>
         
         {isRendering && (
           <div className="absolute top-6 right-6 z-[60] bg-blue-600 p-2 rounded-full shadow-2xl animate-pulse">
@@ -206,9 +214,9 @@ export const PdfViewport: React.FC<PdfViewportProps> = ({
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#020617]/95 z-50 p-12 text-center animate-in fade-in">
             <AlertCircle size={56} className="text-red-500 mb-6" />
             <h3 className="text-white text-lg font-black uppercase tracking-widest mb-2">Falha na Visualização</h3>
-            <p className="text-slate-400 text-sm max-w-xs mx-auto mb-8">O motor de renderização perdeu o foco. Reestabeleça a conexão para continuar.</p>
+            <p className="text-slate-400 text-sm max-w-xs mx-auto mb-8">Não foi possível processar a imagem do documento.</p>
             <button onClick={() => window.location.reload()} className="flex items-center gap-3 px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95">
-               <RefreshCw size={14} /> Recarregar Estação
+               <RefreshCw size={14} /> Tentar Novamente
             </button>
         </div>
       )}

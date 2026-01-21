@@ -90,12 +90,13 @@ export interface SteelBatchMetadata {
   
   documentalNotes?: string;
   documentalDrawings?: string; 
+  documentalPhotos?: string[]; // Evidências do Passo 2
   physicalNotes?: string;
   arbitrationNotes?: string;
   
   documentalFlags?: string[];
   physicalFlags?: string[];
-  physicalPhotos?: string[];
+  physicalPhotos?: string[]; // Evidências do Passo 3
   
   status: QualityStatus;
   chemicalComposition: ChemicalComposition;

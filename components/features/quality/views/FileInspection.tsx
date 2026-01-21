@@ -19,7 +19,8 @@ export const FileInspection: React.FC = () => {
   const {
     inspectorFile, loadingFile, isProcessing,
     mainPreviewUrl, handleInspectAction, handleBackToClientFiles,
-    handleUploadEvidence, user, handleDownload
+    // Fix: removed handleUploadEvidence which was not returned by useFileInspection
+    handleUploadStepEvidence, handleCreateNewVersion, user, handleDownload
   } = useFileInspection();
 
   const [activeTab, setActiveTab] = useState<TabType>('workflow');
@@ -27,18 +28,15 @@ export const FileInspection: React.FC = () => {
   const role = normalizeRole(user?.role);
   const isQuality = role === UserRole.QUALITY || role === UserRole.ADMIN;
 
-  // Cálculos de Auditoria (Ledger Intelligence)
   const auditMetrics = useMemo(() => {
     if (!inspectorFile?.metadata) return null;
     const sigs = inspectorFile.metadata.signatures || {};
     
-    // Identifica o primeiro usuário do cliente que assinou o fluxo
     const clientSignature = 
       sigs.step2_documental || 
       sigs.step5_partner_verdict || 
       sigs.step6_consolidation_client;
 
-    // Localiza a última assinatura para o fim do ciclo
     const allSigs = Object.values(sigs).filter(Boolean).sort((a: any, b: any) => 
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
@@ -92,8 +90,8 @@ export const FileInspection: React.FC = () => {
     if (sigs.step4_arbitrage || isStep4AutoCompleted) completedSteps++;
     if (sigs.step5_partner_verdict) completedSteps++;
     if (sigs.step6_consolidation_client && sigs.step6_consolidation_quality) {
-        completedSteps++; // Passo 6
-        completedSteps++; // Passo 7 (Certificação)
+        completedSteps++;
+        completedSteps++;
     }
     return Math.round((completedSteps / 7) * 100);
   };
@@ -110,7 +108,6 @@ export const FileInspection: React.FC = () => {
       <div className={`flex-1 flex flex-col min-h-0 bg-white border border-slate-200 rounded-[2.5rem] overflow-hidden shadow-sm animate-in fade-in duration-500`}>
         {isProcessing && <ProcessingOverlay message="Sincronizando Ledger Vital..." />}
 
-        {/* Top Header */}
         <header className={`px-10 py-6 ${theme.headerBg} ${theme.headerText} flex flex-col lg:flex-row lg:items-center justify-between gap-6 shrink-0 border-b ${theme.headerBorder}`}>
           <div className="flex items-center gap-6">
             <div className="space-y-1.5">
@@ -152,7 +149,6 @@ export const FileInspection: React.FC = () => {
         </header>
 
         <div className="flex-1 flex overflow-hidden">
-          {/* Sidebar de Auditoria Refinada */}
           <aside className={`w-80 border-r border-slate-100 ${theme.asideBg} hidden lg:flex flex-col shrink-0 p-8 space-y-10 overflow-y-auto custom-scrollbar`}>
             
             <section className="space-y-6">
@@ -216,7 +212,6 @@ export const FileInspection: React.FC = () => {
           <main className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/20">
             <div className="max-w-4xl mx-auto p-12">
               
-              {/* MENU DE ABAS */}
               <nav className="mb-10 flex items-center gap-1.5 bg-slate-200/50 p-1.5 rounded-[2rem] w-fit shadow-inner border border-slate-200/50" role="tablist">
                   <TabButton 
                     active={activeTab === 'workflow'} 
@@ -278,6 +273,7 @@ export const FileInspection: React.FC = () => {
                     onUpdate={async (updates) => {
                         await handleInspectAction(updates);
                     }}
+                    onUploadStepEvidence={handleUploadStepEvidence}
                   />
                 )}
 
@@ -285,7 +281,7 @@ export const FileInspection: React.FC = () => {
                   <NewVersionUploadView 
                     file={inspectorFile}
                     userRole={user?.role as UserRole}
-                    onUpload={handleUploadEvidence}
+                    onUpload={handleCreateNewVersion}
                     onDownload={handleDownload}
                   />
                 )}
