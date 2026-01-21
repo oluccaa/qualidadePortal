@@ -1,12 +1,14 @@
 import React, { useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../context/authContext.tsx';
-import { usePartnerCertificates } from '../hooks/usePartnerCertificates.ts';
+import { useFileCollection } from '../../files/hooks/useFileCollection.ts';
 import { FileExplorer } from '../../files/FileExplorer.tsx';
 import { ExplorerToolbar } from '../../files/components/ExplorerToolbar.tsx';
 import { FileNode, UserRole, FileType } from '../../../../types/index.ts';
 import { fileService, partnerService } from '../../../../lib/services/index.ts';
-import { FileCheck, Loader2, Layers } from 'lucide-react';
+import { PaginationControls } from '../../../common/PaginationControls.tsx';
+import { QualityLoadingState } from '../../quality/components/ViewStates.tsx';
+import { Layers, FileCheck } from 'lucide-react';
 
 export const PartnerLibraryView: React.FC = () => {
   const { user } = useAuth();
@@ -19,8 +21,14 @@ export const PartnerLibraryView: React.FC = () => {
   );
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
-  
-  const { files, isLoading, breadcrumbs, refresh } = usePartnerCertificates(currentFolderId, searchTerm);
+
+  // Utilizamos o useFileCollection diretamente para ter controle total de paginação, 
+  // passando o organizationId do usuário logado.
+  const collection = useFileCollection({ 
+    currentFolderId, 
+    searchTerm, 
+    ownerId: user?.organizationId 
+  });
 
   const handleNavigate = useCallback((id: string | null) => {
     setSelectedFileIds([]);
@@ -49,67 +57,68 @@ export const PartnerLibraryView: React.FC = () => {
     }
   };
 
-  if (isLoading && files.length === 0) {
-      return (
-          <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-[3rem] border-2 border-dashed border-slate-100 font-sans">
-              <Loader2 className="animate-spin text-blue-600 mb-6" size={48} />
-              <p className="text-[11px] font-black uppercase tracking-[6px] text-slate-400">Sincronizando Vault Vital...</p>
-          </div>
-      );
+  if (collection.loading && collection.files.length === 0) {
+      return <QualityLoadingState message="Sincronizando Biblioteca..." />;
   }
 
   return (
-    <div className="flex-1 flex flex-col gap-4 animate-in fade-in duration-700 overflow-hidden font-sans">
-      <section className="bg-[#081437] rounded-[2rem] px-6 py-4 text-white relative overflow-hidden shadow-xl border border-white/5 shrink-0">
-        <div className="relative z-10 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#b23c0e] to-orange-600 rounded-xl flex items-center justify-center shadow-lg shrink-0">
-               <Layers size={20} className="text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-black tracking-tight uppercase">Biblioteca de Ativos</h2>
-              <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest">Acesso B2B Seguro</p>
-            </div>
+    <div className="flex-1 flex flex-col min-h-0 animate-in fade-in duration-700 font-sans">
+      {/* Sub-Header Industrial Solto */}
+      <section className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 px-1">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-[#081437] rounded-2xl flex items-center justify-center shadow-lg shrink-0">
+             <Layers size={24} className="text-blue-400" />
           </div>
-          <div className="hidden sm:flex items-center gap-3 bg-white/5 px-4 py-1.5 rounded-xl border border-white/10">
-             <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Total: <span className="text-white ml-1">{files.length}</span></p>
-             <div className="w-px h-3 bg-white/10" />
-             <div className="flex items-center gap-1.5 text-emerald-400">
-                <FileCheck size={12} />
-                <span className="text-[9px] font-black uppercase tracking-widest">Sincronizado</span>
+          <div>
+            <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">Biblioteca de Ativos</h2>
+            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[3px]">Arquivos técnicos e certificados</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 bg-white border border-slate-200 px-4 py-2 rounded-2xl shadow-sm">
+             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total: <span className="text-slate-900 ml-1">{collection.totalItems}</span></p>
+             <div className="w-px h-3 bg-slate-200" />
+             <div className="flex items-center gap-1.5 text-emerald-500">
+                <FileCheck size={14} />
+                <span className="text-[9px] font-black uppercase tracking-widest">Vault Seguro</span>
              </div>
-          </div>
         </div>
       </section>
 
-      <div className="flex-1 flex flex-col bg-white rounded-[2rem] border border-slate-200 shadow-2xl overflow-hidden">
-        <ExplorerToolbar
-            breadcrumbs={breadcrumbs}
-            onNavigate={handleNavigate}
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            onUploadClick={() => {}} 
-            onCreateFolderClick={() => {}}
-            selectedCount={selectedFileIds.length}
-            onDeleteSelected={() => {}} 
-            onRenameSelected={() => {}}
-            onDownloadSelected={() => {
-                const selected = files.find(f => f.id === selectedFileIds[0]);
-                if (selected) handleDownload(selected);
-            }}
-            viewMode={viewMode}
-            onViewChange={setViewMode}
-            selectedFilesData={files.filter(f => selectedFileIds.includes(f.id))}
-            userRole={UserRole.CLIENT}
-        />
+      {/* Toolbar e Área de Arquivos sem a caixa pesada */}
+      <div className="flex-1 flex flex-col min-h-0">
+        <div className="mb-4">
+          <ExplorerToolbar
+              viewMode={viewMode}
+              onViewChange={(mode) => {
+                setViewMode(mode);
+                localStorage.setItem('explorer_view_mode', mode);
+              }}
+              onNavigate={handleNavigate}
+              breadcrumbs={collection.breadcrumbs}
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              onUploadClick={() => {}} 
+              onCreateFolderClick={() => {}}
+              selectedCount={selectedFileIds.length}
+              onDeleteSelected={() => {}} 
+              onRenameSelected={() => {}}
+              onDownloadSelected={() => {
+                  const selected = collection.files.find(f => f.id === selectedFileIds[0]);
+                  if (selected) handleDownload(selected);
+              }}
+              userRole={UserRole.CLIENT}
+              selectedFilesData={collection.files.filter(f => selectedFileIds.includes(f.id))}
+          />
+        </div>
 
-        <div className="flex-1 relative bg-white min-h-0">
+        <div className="flex-1 relative min-h-0">
             <FileExplorer 
-                files={files} 
-                loading={isLoading}
+                files={collection.files} 
+                loading={collection.loading}
                 currentFolderId={currentFolderId}
                 searchTerm={searchTerm}
-                breadcrumbs={breadcrumbs}
+                breadcrumbs={collection.breadcrumbs}
                 selectedFileIds={selectedFileIds}
                 onToggleFileSelection={(id) => setSelectedFileIds(prev => prev.includes(id) ? [] : [id])}
                 onNavigate={handleNavigate}
@@ -120,6 +129,17 @@ export const PartnerLibraryView: React.FC = () => {
                 viewMode={viewMode}
                 userRole={UserRole.CLIENT}
             />
+        </div>
+
+        <div className="mt-4">
+          <PaginationControls 
+            currentPage={collection.page}
+            pageSize={collection.pageSize}
+            totalItems={collection.totalItems}
+            onPageChange={collection.setPage}
+            onPageSizeChange={collection.setPageSize}
+            isLoading={collection.loading}
+          />
         </div>
       </div>
     </div>

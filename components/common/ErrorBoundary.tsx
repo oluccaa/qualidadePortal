@@ -17,8 +17,8 @@ interface State {
  * Proteção de última instância para falhas catastróficas.
  * Projetado para funcionar mesmo se o sistema de estilos ou tradução falhar.
  */
-/* Fix: Explicitly importing and extending Component ensures setState and props are properly inherited in the TypeScript type system */
-export class ErrorBoundary extends Component<Props, State> {
+// Fix: Explicitly extending React.Component ensures setState and props are correctly inherited in the TypeScript environment
+export class ErrorBoundary extends React.Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null,
@@ -40,12 +40,12 @@ export class ErrorBoundary extends Component<Props, State> {
       timestamp: new Date().toISOString()
     });
     
-    /* Fix: Using setState inherited from the Component base class */
+    // Fix: Using setState inherited from the React.Component base class
     this.setState({ errorInfo });
   }
 
   private handleSoftReset = () => {
-    /* Fix: Using setState inherited from the Component base class to reset error state */
+    // Fix: Using setState inherited from the React.Component base class to reset error state
     this.setState({ hasError: false, error: null, errorInfo: null });
     window.location.href = '/';
   };
@@ -115,7 +115,7 @@ Component Stack: ${this.state.errorInfo?.componentStack}
 
                 <div className="w-full pt-6 border-t border-white/5">
                   <button 
-                    /* Fix: Using arrow function for onClick to maintain 'this' context when calling setState */
+                    // Fix: Accessing setState from inherited React.Component base class
                     onClick={() => this.setState({ showDetails: !this.state.showDetails })}
                     className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[3px] text-slate-500 hover:text-slate-300 transition-colors mx-auto"
                   >
@@ -164,7 +164,7 @@ Component Stack: ${this.state.errorInfo?.componentStack}
       );
     }
 
-    /* Fix: props correctly recognized as inherited member from Component */
+    // Fix: Correctly accessing props from inherited React.Component base class
     return this.props.children;
   }
 }
