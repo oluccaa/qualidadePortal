@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Check, Key, Activity, FileText, ArrowRight, ShieldCheck, 
   Truck, Gavel, UserCheck, Lock, Award, Mail, AlertTriangle, XCircle,
-  MessageSquare, Eye, User, Plus, X
+  MessageSquare, Eye, User, Plus, X, UploadCloud, RefreshCcw
 } from 'lucide-react';
 import { SteelBatchMetadata, QualityStatus, UserRole, AuditSignature } from '../../../../types/index.ts';
 import { useToast } from '../../../../context/notificationContext.tsx';
@@ -15,17 +15,18 @@ interface AuditWorkflowProps {
   userEmail: string;
   fileId: string;
   onUpdate: (updatedMetadata: Partial<SteelBatchMetadata>) => Promise<void>;
+  onUploadReplacement?: (file: File) => Promise<void>;
 }
 
 export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({ 
-    metadata, userRole, userName, userEmail, fileId, onUpdate 
+    metadata, userRole, userName, userEmail, fileId, onUpdate, onUploadReplacement 
 }) => {
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [arbitrationText, setArbitrationText] = useState('');
   
-  // Estados Locais para Flags e Observações (Draft antes de assinar)
   const [docNotes, setDocNotes] = useState(metadata?.documentalNotes || '');
   const [docFlags, setDocFlags] = useState<string[]>(metadata?.documentalFlags || []);
   const [newDocFlag, setNewDocFlag] = useState('');
@@ -50,6 +51,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
   const isArbitrationNeeded = metadata?.documentalStatus === 'REJECTED' || metadata?.physicalStatus === 'REJECTED';
   const isStep4AutoCompleted = s2 && s3 && !isArbitrationNeeded;
   const isStep4Done = s4 || isStep4AutoCompleted;
+  const isRejected = metadata?.status === QualityStatus.REJECTED;
 
   const createSignature = (action: string): AuditSignature => ({
     userId: userName.replace(/\s+/g, '_').toLowerCase(),
@@ -57,7 +59,8 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
     userEmail: userEmail,
     userRole: userRole,
     timestamp: new Date().toISOString(),
-    action: action
+    action: action,
+    ip: '189.120.32.44' // Mock IP para o ledger
   });
 
   const handleAction = async (stepKey: keyof SteelBatchMetadata['signatures'], updates: any) => {
@@ -71,6 +74,22 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
     } finally { 
       setIsSyncing(false); 
     }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file && onUploadReplacement) {
+          setIsSyncing(true);
+          try {
+              await onUploadReplacement(file);
+              showToast("Nova versão do ativo implementada com sucesso.", "success");
+              // A própria página irá atualizar ao detectar a nova versão no ledger
+          } catch (err) {
+              showToast("Erro ao processar substituição.", "error");
+          } finally {
+              setIsSyncing(false);
+          }
+      }
   };
 
   const addFlag = (type: 'doc' | 'phys') => {
@@ -88,19 +107,14 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
     else setPhysFlags(physFlags.filter((_, i) => i !== index));
   };
 
-  const isRejected = metadata?.status === QualityStatus.REJECTED;
-  const clientRep = sigs.step5_partner_verdict || sigs.step6_consolidation_client || sigs.step2_documental;
-
   return (
     <div className="space-y-6 pb-24">
-        
+        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".pdf" />
+
         {/* 1. LIBERAÇÃO VITAL (SGQ) */}
         <StepCard step={1} title="1. Liberação Vital (SGQ)" completed={s1} active={!s1} signature={sigs.step1_release} icon={Key}>
           {isQuality && !s1 && (
-            <button 
-                onClick={() => handleAction('step1_release', { status: QualityStatus.SENT })} 
-                className="w-full py-4 bg-[#132659] text-white rounded-2xl font-black text-[10px] uppercase tracking-[3px] shadow-xl hover:bg-blue-900 transition-all flex items-center justify-center gap-3"
-            >
+            <button onClick={() => handleAction('step1_release', { status: QualityStatus.SENT })} className="w-full py-4 bg-[#132659] text-white rounded-2xl font-black text-[10px] uppercase tracking-[3px] shadow-xl hover:bg-blue-900 transition-all flex items-center justify-center gap-3">
               {isSyncing ? <Activity className="animate-spin" size={16}/> : "Autorizar Fluxo Industrial"}
             </button>
           )}
@@ -110,18 +124,11 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
         <StepCard step={2} title="2. Conferência de Dados" completed={s2} active={s1 && !s2} signature={sigs.step2_documental} icon={FileText}>
             <div className="space-y-5">
                 <div className="flex items-center gap-3">
-                    <button 
-                        disabled={!s1}
-                        onClick={() => navigate(`/preview/${fileId}?mode=audit`)} 
-                        className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
-                            s1 ? 'bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 shadow-sm' : 'bg-slate-50 text-slate-400 border border-slate-100 opacity-50'
-                        }`}
-                    >
+                    <button disabled={!s1} onClick={() => navigate(`/preview/${fileId}?mode=audit`)} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${s1 ? 'bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 shadow-sm' : 'bg-slate-50 text-slate-400 border border-slate-100 opacity-50'}`}>
                         {isQuality && s2 ? <><Eye size={16} /> Ver Notas do Parceiro</> : <><FileText size={16} /> Estação de Anotação</>}
                     </button>
                 </div>
 
-                {/* Flags e Notas - Disponíveis para Cliente (Edit) ou Quality (View) */}
                 {(isClient && s1 && !s2) || (s2) ? (
                     <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-200 shadow-inner">
                         <div className="space-y-2">
@@ -135,14 +142,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                                 ))}
                                 {isClient && !s2 && (
                                     <div className="flex gap-1 w-full mt-2">
-                                        <input 
-                                            type="text" 
-                                            placeholder="Nova flag..." 
-                                            className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs outline-none focus:border-blue-500"
-                                            value={newDocFlag}
-                                            onChange={e => setNewDocFlag(e.target.value)}
-                                            onKeyDown={e => e.key === 'Enter' && addFlag('doc')}
-                                        />
+                                        <input type="text" placeholder="Nova flag..." className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs outline-none focus:border-blue-500" value={newDocFlag} onChange={e => setNewDocFlag(e.target.value)} onKeyDown={e => e.key === 'Enter' && addFlag('doc')} />
                                         <button onClick={() => addFlag('doc')} className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"><Plus size={14}/></button>
                                     </div>
                                 )}
@@ -150,24 +150,16 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                         </div>
                         <div className="space-y-2">
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações do Laudo</label>
-                            <textarea 
-                                readOnly={s2 || !isClient}
-                                value={s2 ? (metadata?.documentalNotes || '') : docNotes}
-                                onChange={e => setDocNotes(e.target.value)}
-                                className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs min-h-[80px] outline-none focus:ring-2 focus:ring-blue-500/10 font-medium"
-                                placeholder="Descreva observações técnicas sobre o documento..."
-                            />
+                            <textarea readOnly={s2 || !isClient} value={s2 ? (metadata?.documentalNotes || '') : docNotes} onChange={e => setDocNotes(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs min-h-[80px] outline-none focus:ring-2 focus:ring-blue-500/10 font-medium" placeholder="Descreva observações técnicas sobre o documento..." />
                         </div>
                     </div>
                 ) : null}
 
                 {isClient && s1 && !s2 && (
-                    <button 
-                        onClick={() => handleAction('step2_documental', { documentalStatus: 'APPROVED', documentalNotes: docNotes, documentalFlags: docFlags })}
-                        className="w-full py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all"
-                    >
-                        Assinar Validação de Dados
-                    </button>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button onClick={() => handleAction('step2_documental', { documentalStatus: 'APPROVED', documentalNotes: docNotes, documentalFlags: docFlags })} className="py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg">Conforme</button>
+                        <button onClick={() => handleAction('step2_documental', { documentalStatus: 'REJECTED', documentalNotes: docNotes, documentalFlags: docFlags })} className="py-3 bg-red-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg">Recusar Dado</button>
+                    </div>
                 )}
             </div>
         </StepCard>
@@ -178,7 +170,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                 {(isClient && s1 && !s3) || (s3) ? (
                     <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-200 shadow-inner">
                         <div className="space-y-2">
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Ocorrências Físicas (Flags)</label>
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Ocorrências Físicas</label>
                             <div className="flex flex-wrap gap-2 mb-2">
                                 {(s3 ? (metadata?.physicalFlags || []) : physFlags).map((flag, idx) => (
                                     <span key={idx} className="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-700">
@@ -188,14 +180,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                                 ))}
                                 {isClient && !s3 && (
                                     <div className="flex gap-1 w-full mt-2">
-                                        <input 
-                                            type="text" 
-                                            placeholder="Nova flag física..." 
-                                            className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs outline-none focus:border-blue-500"
-                                            value={newPhysFlag}
-                                            onChange={e => setNewPhysFlag(e.target.value)}
-                                            onKeyDown={e => e.key === 'Enter' && addFlag('phys')}
-                                        />
+                                        <input type="text" placeholder="Nova flag física..." className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs outline-none focus:border-blue-500" value={newPhysFlag} onChange={e => setNewPhysFlag(e.target.value)} onKeyDown={e => e.key === 'Enter' && addFlag('phys')} />
                                         <button onClick={() => addFlag('phys')} className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"><Plus size={14}/></button>
                                     </div>
                                 )}
@@ -203,31 +188,15 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                         </div>
                         <div className="space-y-2">
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações de Recebimento</label>
-                            <textarea 
-                                readOnly={s3 || !isClient}
-                                value={s3 ? (metadata?.physicalNotes || '') : physNotes}
-                                onChange={e => setPhysNotes(e.target.value)}
-                                className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs min-h-[80px] outline-none focus:ring-2 focus:ring-blue-500/10 font-medium"
-                                placeholder="Relate o estado físico do lote..."
-                            />
+                            <textarea readOnly={s3 || !isClient} value={s3 ? (metadata?.physicalNotes || '') : physNotes} onChange={e => setPhysNotes(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs min-h-[80px] outline-none focus:ring-2 focus:ring-blue-500/10 font-medium" placeholder="Relate o estado físico do lote..." />
                         </div>
                     </div>
                 ) : null}
 
                 {isClient && s1 && !s3 && (
                     <div className="grid grid-cols-2 gap-3">
-                        <button 
-                            onClick={() => handleAction('step3_physical', { physicalStatus: 'APPROVED', physicalNotes: physNotes, physicalFlags: physFlags })}
-                            className="py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg"
-                        >
-                            Aprovar Carga
-                        </button>
-                        <button 
-                            onClick={() => handleAction('step3_physical', { physicalStatus: 'REJECTED', physicalNotes: physNotes, physicalFlags: physFlags })}
-                            className="py-3 bg-red-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg"
-                        >
-                            Rejeitar Carga
-                        </button>
+                        <button onClick={() => handleAction('step3_physical', { physicalStatus: 'APPROVED', physicalNotes: physNotes, physicalFlags: physFlags })} className="py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg">Carga OK</button>
+                        <button onClick={() => handleAction('step3_physical', { physicalStatus: 'REJECTED', physicalNotes: physNotes, physicalFlags: physFlags })} className="py-3 bg-red-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg">Reprovar Carga</button>
                     </div>
                 )}
             </div>
@@ -239,24 +208,13 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                 {isStep4AutoCompleted && !s4 && (
                     <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3">
                         <ShieldCheck size={18} className="text-emerald-600" />
-                        <p className="text-[10px] font-black text-emerald-800 uppercase tracking-tight">Conformidade Detectada: Sem necessidade de arbitragem.</p>
+                        <p className="text-[10px] font-black text-emerald-800 uppercase tracking-tight">Fluxo em Conformidade: Sem necessidade de arbitragem.</p>
                     </div>
                 )}
                 {isQuality && isArbitrationNeeded && !s4 && (
                     <div className="space-y-4">
-                        <textarea 
-                            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs min-h-[100px] outline-none focus:ring-4 focus:ring-blue-500/10 transition-all font-medium"
-                            placeholder="Descreva a contestação técnica ou justificativa de mediação..."
-                            value={arbitrationText}
-                            onChange={(e) => setArbitrationText(e.target.value)}
-                        />
-                        <button 
-                            disabled={!arbitrationText.trim() || isSyncing}
-                            onClick={() => handleAction('step4_arbitrage', { arbitrationNotes: arbitrationText })}
-                            className="w-full py-4 bg-[#132659] text-white rounded-2xl font-black text-[10px] uppercase tracking-[3px] shadow-xl"
-                        >
-                            {isSyncing ? <Activity className="animate-spin" size={16}/> : "Assinar Arbitragem Técnica"}
-                        </button>
+                        <textarea className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs min-h-[100px] outline-none focus:ring-4 focus:ring-blue-500/10 transition-all font-medium" placeholder="Descreva a mediação técnica..." value={arbitrationText} onChange={(e) => setArbitrationText(e.target.value)} />
+                        <button disabled={!arbitrationText.trim() || isSyncing} onClick={() => handleAction('step4_arbitrage', { arbitrationNotes: arbitrationText })} className="w-full py-4 bg-[#132659] text-white rounded-2xl font-black text-[10px] uppercase tracking-[3px] shadow-xl">Assinar Mediação</button>
                     </div>
                 )}
                 {s4 && metadata?.arbitrationNotes && (
@@ -307,7 +265,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
             </div>
         </StepCard>
 
-        {/* 7. PROTOCOLO VITAL CERTIFICADO (Otimizado) */}
+        {/* 7. PROTOCOLO VITAL CERTIFICADO / ZONA DE RETIFICAÇÃO */}
         <StepCard step={7} title="7. Protocolo Vital Certificado" completed={s6} active={s6} icon={Award}>
             {s6 && (
                 <div className="animate-in fade-in zoom-in-95 duration-700">
@@ -318,43 +276,32 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                             </div>
                             <div>
                                 <h4 className="text-sm font-black text-emerald-900 uppercase tracking-tight">Certificação Concluída</h4>
-                                <p className="text-[11px] text-emerald-700 font-medium">Lote homologado para utilização industrial.</p>
+                                <p className="text-[11px] text-emerald-700 font-medium">Lote homologado e assinado digitalmente.</p>
                             </div>
                         </div>
                     ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-6">
                             <div className="flex items-center gap-4 p-5 bg-red-50 rounded-2xl border border-red-100">
                                 <AlertTriangle size={24} className="text-red-600 shrink-0" />
                                 <div className="flex-1 min-w-0">
-                                    <h4 className="text-xs font-black text-red-900 uppercase tracking-tight">Lote Rejeitado</h4>
-                                    <p className="text-[10px] text-red-700 font-medium leading-tight">
-                                        {isQuality 
-                                            ? "O parceiro entrará em contato para conciliação técnica." 
-                                            : "Divergência impeditiva detectada. Contate a Qualidade para conciliação."}
-                                    </p>
+                                    <h4 className="text-xs font-black text-red-900 uppercase tracking-tight">Ativo Reprovado</h4>
+                                    <p className="text-[10px] text-red-700 font-medium leading-tight">O fluxo foi finalizado com não-conformidade. É necessário o envio de um arquivo substituto para reiniciar o protocolo.</p>
                                 </div>
                             </div>
 
-                            {isQuality && clientRep && (
-                                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-                                    <header className="flex items-center gap-2 text-slate-400">
-                                        <User size={12} />
-                                        <span className="text-[9px] font-black uppercase tracking-widest">Intervenção de Gestão: Contato do Cliente</span>
-                                    </header>
-                                    <div className="flex items-center justify-between gap-4">
-                                        <div className="min-w-0">
-                                            <p className="text-[11px] font-black text-slate-800 uppercase truncate">{clientRep.userName}</p>
-                                            <p className="text-[10px] text-blue-600 font-bold truncate lowercase">{clientRep.userEmail}</p>
-                                        </div>
-                                        <a href={`mailto:${clientRep.userEmail}`} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-blue-600 shadow-sm transition-all"><Mail size={14} /></a>
+                            {/* ZONA DE UPLOAD DE SUBSTITUIÇÃO (RETIFICAÇÃO) */}
+                            {onUploadReplacement && (
+                                <div className="bg-white border-2 border-dashed border-blue-200 rounded-[2rem] p-8 flex flex-col items-center text-center gap-4 hover:border-blue-500 hover:bg-blue-50/30 transition-all cursor-pointer group" onClick={() => fileInputRef.current?.click()}>
+                                    <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                                        <UploadCloud size={32} />
                                     </div>
-                                </div>
-                            )}
-                            
-                            {!isQuality && (
-                                <div className="flex items-center justify-center gap-3 p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
-                                    <Mail size={12} className="text-red-400" />
-                                    <span className="text-[10px] font-mono font-bold text-slate-500">qualidade_adm@acosvital.com.br</span>
+                                    <div>
+                                        <p className="text-sm font-black text-slate-800 uppercase">Upar Arquivo Substituto</p>
+                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Este arquivo gerará a versão v{(metadata?.currentVersion || 1) + 1}.0</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 px-4 py-2 bg-[#132659] text-white rounded-xl text-[9px] font-black uppercase tracking-[2px] shadow-lg">
+                                        <RefreshCcw size={12} /> Iniciar Retificação
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -395,7 +342,6 @@ const StepCard = ({ title, active, completed, signature, children, icon: Icon }:
                             <h3 className={`text-lg font-black uppercase tracking-tight ${active ? 'text-[#132659]' : completed ? 'text-slate-800' : 'text-slate-400'}`}>{title}</h3>
                             <span className="text-[8px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded uppercase tracking-widest">{completed ? 'VALIDADO' : active ? 'EM ANÁLISE' : 'AGUARDANDO'}</span>
                         </div>
-                        {completed && <ShieldCheck size={20} className="text-emerald-500" />}
                     </header>
                     {children && <div className="animate-in fade-in slide-in-from-top-2 duration-500">{children}</div>}
                     {signature && (
@@ -403,10 +349,6 @@ const StepCard = ({ title, active, completed, signature, children, icon: Icon }:
                             <div className="flex-1 min-w-0">
                                 <p className="text-[7px] font-black text-slate-400 uppercase tracking-[3px] mb-1">Assinatura Digital Auditada:</p>
                                 <div className="flex flex-col"><p className="text-[11px] font-black text-slate-800 uppercase tracking-tight truncate">{signature.userName}</p><p className="text-[9px] text-blue-600 font-bold underline opacity-70 lowercase truncate">{signature.userEmail}</p></div>
-                            </div>
-                            <div className="text-right shrink-0">
-                                <p className="text-[9px] font-black text-slate-700 font-mono">{new Date(signature.timestamp).toLocaleDateString('pt-BR')}</p>
-                                <p className="text-[9px] font-black text-slate-400 font-mono">{new Date(signature.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} (SP)</p>
                             </div>
                         </div>
                     )}
