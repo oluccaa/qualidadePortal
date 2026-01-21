@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Check, Key, Activity, FileText, ArrowRight, ShieldCheck, 
-  Truck, Gavel, UserCheck, Lock, Award, Mail, AlertTriangle
+  Truck, Gavel, UserCheck, Lock, Award, Mail, AlertTriangle, XCircle,
+  MessageSquare
 } from 'lucide-react';
 import { SteelBatchMetadata, QualityStatus, UserRole, AuditSignature } from '../../../../types/index.ts';
 import { useToast } from '../../../../context/notificationContext.tsx';
@@ -22,6 +23,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [arbitrationText, setArbitrationText] = useState('');
   
   const isQuality = userRole === UserRole.QUALITY || userRole === UserRole.ADMIN;
   const isClient = userRole === UserRole.CLIENT;
@@ -34,8 +36,13 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
   const s5 = !!sigs.step5_partner_verdict;
   const s6_c = !!sigs.step6_consolidation_client;
   const s6_q = !!sigs.step6_consolidation_quality;
-  const s6 = s6_c && s6_q; // Completo apenas se ambos assinarem
+  const s6 = s6_c && s6_q; 
   const s7 = !!sigs.step7_certification;
+
+  // Lógica de Arbitragem Técnica
+  const isArbitrationNeeded = metadata?.documentalStatus === 'REJECTED' || metadata?.physicalStatus === 'REJECTED';
+  const isStep4AutoCompleted = s2 && s3 && !isArbitrationNeeded;
+  const isStep4Done = s4 || isStep4AutoCompleted;
 
   const createSignature = (action: string): AuditSignature => ({
     userId: userName.replace(/\s+/g, '_').toLowerCase(),
@@ -103,33 +110,76 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
         {/* 3. VISTORIA DE CARGA - SOMENTE CLIENTE */}
         <StepCard step={3} title="3. Vistoria de Carga" completed={s3} active={s1 && !s3} signature={sigs.step3_physical} icon={Truck}>
             <div className="space-y-4">
-                <p className="text-[10px] text-slate-500 font-medium">Confirmação física de recebimento do lote industrial.</p>
+                <p className="text-[10px] text-slate-500 font-medium">Confirmação física de recebimento e integridade do lote industrial.</p>
                 {isClient && s1 && !s3 && (
-                    <button 
-                        onClick={() => handleAction('step3_physical', { physicalStatus: 'APPROVED' })}
-                        className="w-full py-3 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg"
-                    >
-                        Confirmar Recebimento Físico
-                    </button>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button 
+                            onClick={() => handleAction('step3_physical', { physicalStatus: 'APPROVED' })}
+                            className="py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all hover:bg-emerald-700 flex items-center justify-center gap-2"
+                        >
+                            <Check size={14} strokeWidth={4} /> Aprovar Carga
+                        </button>
+                        <button 
+                            onClick={() => handleAction('step3_physical', { physicalStatus: 'REJECTED' })}
+                            className="py-3 bg-red-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all hover:bg-red-700 flex items-center justify-center gap-2"
+                        >
+                            <XCircle size={14} strokeWidth={3} /> Rejeitar Carga
+                        </button>
+                    </div>
                 )}
             </div>
         </StepCard>
 
         {/* 4. ARBITRAGEM TÉCNICA - SOMENTE QUALITY */}
-        <StepCard step={4} title="4. Arbitragem Técnica" completed={s4} active={s2 && s3 && !s4} signature={sigs.step4_arbitrage} icon={Gavel}>
-            {isQuality && s2 && s3 && !s4 && (
-                <button 
-                    onClick={() => handleAction('step4_arbitrage', {})}
-                    className="w-full py-4 bg-[#132659] text-white rounded-2xl font-black text-[10px] uppercase tracking-[3px] shadow-xl"
-                >
-                    Executar Arbitragem de Notas
-                </button>
-            )}
+        <StepCard step={4} title="4. Arbitragem Técnica" completed={isStep4Done} active={s2 && s3 && isArbitrationNeeded && !s4} signature={sigs.step4_arbitrage} icon={Gavel}>
+            <div className="space-y-4">
+                {isStep4AutoCompleted && !s4 && (
+                    <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3 animate-in fade-in duration-500">
+                        <ShieldCheck size={18} className="text-emerald-600" />
+                        <p className="text-[10px] font-black text-emerald-800 uppercase tracking-tight">
+                            Conformidade Detectada: Não foi necessária contestação técnica.
+                        </p>
+                    </div>
+                )}
+
+                {isQuality && isArbitrationNeeded && !s4 && (
+                    <div className="space-y-4 animate-in slide-in-from-top-2 duration-500">
+                        <p className="text-[10px] text-slate-500 font-medium">Houve uma reprovação nos passos anteriores. O analista deve mediar a divergência.</p>
+                        <div className="space-y-2">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Parecer de Arbitragem</label>
+                            <textarea 
+                                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs min-h-[100px] outline-none focus:ring-4 focus:ring-blue-500/10 focus:bg-white transition-all font-medium"
+                                placeholder="Descreva a contestação técnica ou justificativa de mediação..."
+                                value={arbitrationText}
+                                onChange={(e) => setArbitrationText(e.target.value)}
+                            />
+                        </div>
+                        <button 
+                            disabled={!arbitrationText.trim() || isSyncing}
+                            onClick={() => handleAction('step4_arbitrage', { arbitrationNotes: arbitrationText })}
+                            className="w-full py-4 bg-[#132659] text-white rounded-2xl font-black text-[10px] uppercase tracking-[3px] shadow-xl hover:bg-blue-900 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                        >
+                            {isSyncing ? <Activity className="animate-spin" size={16}/> : "Assinar Arbitragem Técnica"}
+                        </button>
+                    </div>
+                )}
+
+                {s4 && metadata?.arbitrationNotes && (
+                    <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100 space-y-2">
+                        <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
+                            <MessageSquare size={12} /> Nota de Mediação:
+                        </p>
+                        <p className="text-xs text-blue-900 font-medium italic leading-relaxed">
+                            "{metadata.arbitrationNotes}"
+                        </p>
+                    </div>
+                )}
+            </div>
         </StepCard>
 
         {/* 5. VEREDITO DO PARCEIRO - SOMENTE CLIENTE */}
-        <StepCard step={5} title="5. Veredito do Parceiro" completed={s5} active={s4 && !s5} signature={sigs.step5_partner_verdict} icon={UserCheck}>
-            {isClient && s4 && !s5 && (
+        <StepCard step={5} title="5. Veredito do Parceiro" completed={s5} active={isStep4Done && !s5} signature={sigs.step5_partner_verdict} icon={UserCheck}>
+            {isClient && isStep4Done && !s5 && (
                 <div className="grid grid-cols-2 gap-3">
                     <button 
                         onClick={() => handleAction('step5_partner_verdict', { status: QualityStatus.APPROVED })}

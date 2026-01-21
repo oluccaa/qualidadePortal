@@ -1,4 +1,3 @@
-
 import { ID, ISO8601Date } from './common.ts';
 import { QualityStatus } from './enums.ts';
 
@@ -85,6 +84,7 @@ export interface SteelBatchMetadata {
   documentalNotes?: string;
   documentalDrawings?: string; 
   physicalNotes?: string;
+  arbitrationNotes?: string; // Novo campo para o passo 4
   
   documentalFlags?: string[];
   physicalFlags?: string[];
