@@ -3,9 +3,23 @@ import { Layout } from '../../../layout/MainLayout.tsx';
 import { AuditWorkflow } from '../components/AuditWorkflow.tsx';
 import { ProcessingOverlay, QualityLoadingState } from '../components/ViewStates.tsx';
 import { useFileInspection } from '../hooks/useFileInspection.ts';
-import { ArrowLeft, AlertCircle, ShieldCheck, Database, ExternalLink, FileText, Info, Building2, Terminal, ClipboardList, Users, Clock } from 'lucide-react';
+import { 
+  AlertCircle, 
+  Database, 
+  ExternalLink, 
+  FileText, 
+  Terminal, 
+  ClipboardList, 
+  Users, 
+  Clock,
+  ShieldCheck
+} from 'lucide-react';
 import { QualityStatus, UserRole, normalizeRole } from '../../../../types/index.ts';
 
+/**
+ * FileInspection View
+ * O "Coração" do Portal da Qualidade. Onde o veredito técnico é proferido.
+ */
 export const FileInspection: React.FC = () => {
   const {
     inspectorFile, loadingFile, isProcessing,
@@ -17,7 +31,7 @@ export const FileInspection: React.FC = () => {
   const isQuality = role === UserRole.QUALITY || role === UserRole.ADMIN;
 
   if (loadingFile) {
-    return <QualityLoadingState message="Sincronizando protocolos..." />;
+    return <QualityLoadingState message="Sincronizando protocolos de segurança..." />;
   }
 
   if (!inspectorFile) {
@@ -25,147 +39,141 @@ export const FileInspection: React.FC = () => {
       <Layout title="Erro de Carga">
         <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-4 h-full bg-slate-50" role="alert">
           <AlertCircle size={48} className="opacity-20" />
-          <p className="font-bold uppercase tracking-widest text-[10px]">Ativo não localizado</p>
-          <button onClick={handleBackToClientFiles} className="px-6 py-2 bg-slate-900 text-white rounded-lg font-bold text-[10px] uppercase">Voltar</button>
+          <p className="font-bold uppercase tracking-widest text-[10px]">Ativo não localizado no Ledger</p>
+          <button onClick={handleBackToClientFiles} className="px-6 py-2 bg-slate-900 text-white rounded-lg font-bold text-[10px] uppercase">Voltar ao Painel</button>
         </div>
       </Layout>
     );
   }
 
-  // Definição de Tema por Role
+  // Tematização Dinâmica: Diferencia visualmente o Auditor do Cliente
   const theme = {
     headerBg: isQuality ? 'bg-[#132659]' : 'bg-slate-100',
     headerText: isQuality ? 'text-white' : 'text-slate-900',
     headerBorder: isQuality ? 'border-white/10' : 'border-slate-200',
     asideBg: isQuality ? 'bg-slate-50/50' : 'bg-white',
-    accentColor: isQuality ? 'text-blue-500' : 'text-emerald-600',
+    accentColor: isQuality ? 'text-blue-400' : 'text-emerald-600',
     accentBg: isQuality ? 'bg-blue-500/10' : 'bg-emerald-500/10'
   };
 
   const formatDateTime = (iso: string | undefined) => {
     if (!iso) return '--';
     return new Date(iso).toLocaleString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
+        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
     });
   };
 
-  const getOrganizationName = () => {
+  // Lógica para identificar quem é o humano responsável pelo lado do cliente
+  const getOrganizationDisplay = () => {
       const org = inspectorFile.organizations;
-      if (!org) return user?.organizationName || 'N/A';
-      if (Array.isArray(org)) return org[0]?.name || 'N/A';
-      return org.name || 'N/A';
+      const orgName = Array.isArray(org) ? org[0]?.name : org?.name;
+      const baseName = orgName || user?.organizationName || 'N/A';
+      
+      const repName = inspectorFile.metadata?.signatures?.step6_consolidation_client?.userName || 
+                     inspectorFile.metadata?.signatures?.step5_partner_verdict?.userName ||
+                     inspectorFile.metadata?.signatures?.step2_documental?.userName ||
+                     inspectorFile.metadata?.lastClientInteractionBy;
+
+      return repName ? `${baseName} (Rep: ${repName})` : baseName;
   };
 
-  const storagePath = inspectorFile.storagePath || '';
-  const hashValue = storagePath.split('/').pop()?.substring(0, 12).toUpperCase() || 'N/A';
+  const hashValue = inspectorFile.storagePath?.split('/').pop()?.substring(0, 12).toUpperCase() || 'N/A';
 
+  // Progresso baseado nos 7 passos do protocolo Vital
   const calculateProgress = () => {
     const meta = inspectorFile.metadata;
     if (!meta) return 0;
     if (meta.status === QualityStatus.APPROVED) return 100;
 
     const sigs = meta.signatures || {};
-    let units = 0;
-    const totalUnits = 9;
+    let points = 0;
+    if (sigs.step1_release) points += 15;
+    if (sigs.step2_documental) points += 15;
+    if (sigs.step3_physical) points += 15;
+    if (sigs.step4_arbitrage) points += 15;
+    if (sigs.step5_partner_verdict) points += 15;
+    if (sigs.step6_consolidation_client || sigs.step6_consolidation_quality) points += 15;
+    if (meta.status === QualityStatus.APPROVED) points = 100;
 
-    if (sigs.step1_release) units += 1;
-    const s2Done = !!sigs.step2_documental;
-    const s3Done = !!sigs.step3_physical;
-    if (s2Done) units += (meta.documentalStatus === 'APPROVED' ? 2 : 1);
-    if (s3Done) units += (meta.physicalStatus === 'APPROVED' ? 2 : 1);
-    if (s2Done && s3Done) {
-      if (meta.documentalStatus === 'APPROVED' && meta.physicalStatus === 'APPROVED') units += 2;
-      else {
-        if (sigs.step4_contestation) units += 1;
-        if (sigs.step5_mediation_review) units += 1;
-      }
-    }
-    if (sigs.step6_system_log) units += 1;
-    if (sigs.step7_final_verdict) units += 1;
-
-    return Math.min(Math.round((units / totalUnits) * 100), 100);
+    return Math.min(points, 100);
   };
 
   return (
-    <Layout title={isQuality ? "Painel de Auditoria" : "Central de Conformidade"}>
-      <div className={`flex-1 flex flex-col min-h-0 bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-sm animate-in fade-in duration-500`}>
-        {isProcessing && <ProcessingOverlay message="Atualizando Ledger Vital..." />}
+    <Layout title={isQuality ? "Terminal de Auditoria" : "Central de Qualidade"}>
+      <div className="flex-1 flex flex-col min-h-0 bg-white border border-slate-200 rounded-[2.5rem] overflow-hidden shadow-2xl animate-in fade-in duration-700">
+        {isProcessing && <ProcessingOverlay message="Gravando Veredito no Ledger Vital..." />}
 
-        {/* Dynamic Header */}
-        <header className={`px-8 py-5 ${theme.headerBg} ${theme.headerText} flex items-center justify-between shrink-0 border-b ${theme.headerBorder}`}>
+        {/* Header Técnico de Alto Impacto */}
+        <header className={`px-10 py-6 ${theme.headerBg} ${theme.headerText} flex items-center justify-between shrink-0 border-b ${theme.headerBorder}`}>
           <div className="flex items-center gap-6">
+            <div className={`p-3 rounded-2xl ${theme.accentBg} ${theme.accentColor} shadow-inner`}>
+                {isQuality ? <Terminal size={24} /> : <ClipboardList size={24} />}
+            </div>
             <div className="space-y-1">
-              <div className="flex items-center gap-3">
-                <div className={`p-1.5 rounded-lg ${theme.accentBg} ${theme.accentColor}`}>
-                   {isQuality ? <Terminal size={18} /> : <ClipboardList size={18} />}
-                </div>
-                <h1 className="text-lg font-black uppercase tracking-tight">
-                  {isQuality ? "Terminal Técnico de Auditoria" : "Controle de Qualidade"}
-                </h1>
-              </div>
-              <p className={`text-[9px] font-bold uppercase tracking-widest opacity-60`}>
-                {isQuality ? `Protocolo SGQ • ID: ${inspectorFile.id.split('-')[0]}` : `Empresa: ${user?.organizationName}`}
+              <h1 className="text-xl font-black uppercase tracking-tighter">
+                {isQuality ? "Console Técnico de Auditoria" : "Status de Conformidade do Ativo"}
+              </h1>
+              <p className="text-[10px] font-bold uppercase tracking-[4px] opacity-50">
+                {isQuality ? `Protocolo B2B • ID: ${inspectorFile.id.split('-')[0]}` : `Empresa: ${user?.organizationName}`}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-             <div className={`${isQuality ? 'bg-white/5 border-white/10' : 'bg-slate-200/50 border-slate-300'} border px-4 py-2 rounded-xl flex items-center gap-3`}>
-                <FileText size={16} className={theme.accentColor} />
+          <div className="flex items-center gap-6">
+             <div className="hidden xl:flex items-center gap-4 bg-black/10 px-5 py-2.5 rounded-2xl border border-white/5">
+                <FileText size={18} className={theme.accentColor} />
                 <div className="min-w-0">
-                  <p className={`text-[8px] font-black uppercase tracking-widest leading-none mb-0.5 ${isQuality ? 'text-slate-500' : 'text-slate-400'}`}>Dossier Selecionado</p>
-                  <p className={`text-[11px] font-bold truncate max-w-[180px] uppercase tracking-tight ${isQuality ? 'text-white' : 'text-slate-700'}`}>{inspectorFile.name}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest opacity-40">Documento em análise</p>
+                  <p className="text-xs font-bold truncate max-w-[200px] uppercase tracking-tight">{inspectorFile.name}</p>
                 </div>
              </div>
              
              {mainPreviewUrl && (
                 <button 
                   onClick={() => window.open(mainPreviewUrl!, '_blank')} 
-                  className={`flex items-center gap-2 px-4 py-2 ${isQuality ? 'bg-blue-600 hover:bg-blue-500' : 'bg-[#132659] hover:bg-slate-800'} text-white rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95`}
+                  className={`flex items-center gap-3 px-6 py-3 ${isQuality ? 'bg-blue-600 hover:bg-blue-500' : 'bg-[#132659] hover:bg-slate-800'} text-white rounded-xl text-[10px] font-black uppercase tracking-[2px] transition-all shadow-xl active:scale-95`}
                 >
-                  <ExternalLink size={12} /> Visualizar Laudo
+                  <ExternalLink size={14} /> Abrir Laudo Original
                 </button>
              )}
           </div>
         </header>
 
         <div className="flex-1 flex overflow-hidden">
-          <aside className={`w-72 border-r border-slate-100 ${theme.asideBg} hidden lg:flex flex-col shrink-0 p-6 space-y-8 overflow-y-auto custom-scrollbar`}>
+          {/* Sidebar de Metadados e Partes Envolvidas */}
+          <aside className={`w-80 border-r border-slate-100 ${theme.asideBg} hidden lg:flex flex-col shrink-0 p-8 space-y-10 overflow-y-auto custom-scrollbar`}>
             
-            <section className="space-y-4">
-                <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Database size={12} /> Rastreabilidade Ledger
+            <section className="space-y-5">
+                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[4px] flex items-center gap-2">
+                    <Database size={14} /> Rastreabilidade
                 </h3>
-                <div className="space-y-3 px-1">
-                    <TechnicalInfo label="Cluster ID" value={inspectorFile.id.split('-')[0].toUpperCase()} />
+                <div className="space-y-4">
+                    <TechnicalInfo label="ID de Cluster" value={inspectorFile.id.split('-')[0].toUpperCase()} />
                     <TechnicalInfo label="Versão do Ativo" value={`v${inspectorFile.versionNumber || 1}.0`} />
-                    <TechnicalInfo label="Hash de Origem" value={hashValue} />
+                    <TechnicalInfo label="Assinatura Hash" value={hashValue} isMono />
                 </div>
             </section>
 
-            <section className="space-y-4">
-                <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Users size={12} /> Partes Envolvidas
+            <section className="space-y-5">
+                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[4px] flex items-center gap-2">
+                    <Users size={14} /> Partes Envolvidas
                 </h3>
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-6">
                     <TechnicalInfo 
                       label="Analista Responsável" 
-                      value={inspectorFile.metadata?.signatures?.step1_release?.userName || 'Aguardando Liberação'} 
+                      value={inspectorFile.metadata?.signatures?.step1_release?.userName || 'Aguardando Início'} 
                     />
                     
                     <TechnicalInfo 
                       label="Entidade Cliente" 
-                      value={getOrganizationName()} 
+                      value={getOrganizationDisplay()} 
                     />
 
-                    <div className="pt-4 border-t border-slate-100 grid grid-cols-1 gap-4">
+                    <div className="pt-4 border-t border-slate-100">
                       <div className="flex items-start gap-3">
-                         <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg"><Clock size={12}/></div>
+                         <div className="p-2 bg-blue-50 text-blue-600 rounded-xl"><Clock size={14}/></div>
                          <TechnicalInfo 
-                            label="Início do Fluxo" 
+                            label="Data de Abertura" 
                             value={formatDateTime(inspectorFile.metadata?.signatures?.step1_release?.timestamp)} 
                          />
                       </div>
@@ -173,28 +181,31 @@ export const FileInspection: React.FC = () => {
                 </div>
             </section>
 
-            <div className="pt-4 mt-auto opacity-20 text-center">
-              <img src="https://wtydnzqianhahiiasows.supabase.co/storage/v1/object/public/public_assets/hero/isotipo.png" className="h-5 mx-auto grayscale" alt="Vital" />
-              <p className="text-[7px] font-bold mt-2 text-slate-400 uppercase tracking-[4px]">VITAL ENGINE</p>
+            <div className="pt-8 mt-auto flex flex-col items-center opacity-30">
+              <ShieldCheck size={32} className="text-slate-400 mb-2" />
+              <p className="text-[8px] font-black text-slate-500 uppercase tracking-[5px]">Vital Cloud Secure</p>
             </div>
           </aside>
 
-          <main className="flex-1 overflow-y-auto custom-scrollbar bg-white">
-            <div className="max-w-4xl mx-auto p-10">
-              <header className="mb-8 flex items-end justify-between border-b border-slate-100 pb-5">
+          {/* Área Principal do Workflow */}
+          <main className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
+            <div className="max-w-4xl mx-auto p-12">
+              <header className="mb-12 flex items-end justify-between border-b border-slate-200 pb-8">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">
-                    {isQuality ? "Fluxo de Auditoria Técnica" : "Conformidade dos documentos"}
+                  <h2 className="text-2xl font-black text-[#132659] uppercase tracking-tight">
+                    {isQuality ? "Fluxo de Auditoria Técnica" : "Painel de Conformidade de Lote"}
                   </h2>
-                  <p className="text-[11px] font-medium text-slate-500 mt-1.5">
-                    {isQuality ? "Controle de transmissão e arbitragem de laudos." : "Verificação e aceite de certificados de qualidade."}
+                  <p className="text-sm font-medium text-slate-500 mt-2">
+                    {isQuality 
+                      ? "Certifique-se de validar todos os requisitos metalúrgicos antes de assinar." 
+                      : "Acompanhe a validação técnica dos seus certificados em tempo real."}
                   </p>
                 </div>
                 <div className="text-right">
-                  <span className={`text-2xl font-black font-mono tracking-tighter ${isQuality ? 'text-blue-600' : 'text-emerald-600'}`}>
+                  <span className={`text-4xl font-black font-mono tracking-tighter ${isQuality ? 'text-blue-600' : 'text-emerald-600'}`}>
                     {calculateProgress()}%
                   </span>
-                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Processo</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[4px]">Status do Lote</p>
                 </div>
               </header>
 
@@ -216,9 +227,11 @@ export const FileInspection: React.FC = () => {
   );
 };
 
-const TechnicalInfo = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex flex-col gap-0.5 overflow-hidden">
-    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{label}</span>
-    <span className="text-[10px] font-bold text-slate-700 uppercase tracking-tight truncate">{value}</span>
+const TechnicalInfo = ({ label, value, isMono = false }: { label: string; value: string; isMono?: boolean }) => (
+  <div className="flex flex-col gap-1 overflow-hidden">
+    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+    <span className={`text-[13px] font-bold text-slate-700 uppercase tracking-tight truncate ${isMono ? 'font-mono text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md inline-block w-fit' : ''}`}>
+      {value}
+    </span>
   </div>
 );
