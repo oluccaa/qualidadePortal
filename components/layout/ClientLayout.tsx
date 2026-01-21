@@ -62,8 +62,8 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({ children, title, act
           onNavigateBack={handleNavigateBack} 
         />
 
-        <main className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 p-4 md:p-6 relative flex flex-col">
-          <div className="w-full mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500 flex flex-col">
+        <main className="flex-1 flex flex-col min-h-0 bg-slate-50 relative">
+          <div className="flex-1 flex flex-col h-full overflow-hidden">
             {children}
           </div>
         </main>

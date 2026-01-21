@@ -32,15 +32,19 @@ const ClientPortal: React.FC = () => {
       activeView={activeView} 
       onViewChange={handleViewChange}
     >
-      <main className="flex-1 flex flex-col animate-in fade-in slide-in-from-bottom-3 duration-700">
-        {activeView === 'home' && <ClientDashboard />}
+      <div className="flex-1 flex flex-col p-4 md:p-6 overflow-hidden">
+        {activeView === 'home' && (
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
+             <ClientDashboard />
+          </div>
+        )}
         {activeView === 'library' && <PartnerLibraryView />}
         {activeView === 'audit_flow' && (
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             <QualityPortfolioView />
           </div>
         )}
-      </main>
+      </div>
     </ClientLayout>
   );
 };

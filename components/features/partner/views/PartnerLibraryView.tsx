@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../context/authContext.tsx';
@@ -37,7 +36,6 @@ export const PartnerLibraryView: React.FC = () => {
         handleNavigate(file.id);
     } else {
         if (user) await partnerService.logFileView(user, file);
-        // NOVA LÓGICA: Navega para a página de preview
         navigate(`/preview/${file.id}`);
     }
   };
@@ -61,7 +59,7 @@ export const PartnerLibraryView: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full gap-4 animate-in fade-in duration-700 overflow-hidden font-sans">
+    <div className="flex-1 flex flex-col gap-4 animate-in fade-in duration-700 overflow-hidden font-sans">
       <section className="bg-[#081437] rounded-[2rem] px-6 py-4 text-white relative overflow-hidden shadow-xl border border-white/5 shrink-0">
         <div className="relative z-10 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -84,7 +82,7 @@ export const PartnerLibraryView: React.FC = () => {
         </div>
       </section>
 
-      <div className="flex-1 min-h-0 flex flex-col bg-white rounded-[2rem] border border-slate-200 shadow-2xl overflow-hidden">
+      <div className="flex-1 flex flex-col bg-white rounded-[2rem] border border-slate-200 shadow-2xl overflow-hidden">
         <ExplorerToolbar
             breadcrumbs={breadcrumbs}
             onNavigate={handleNavigate}
@@ -105,7 +103,7 @@ export const PartnerLibraryView: React.FC = () => {
             userRole={UserRole.CLIENT}
         />
 
-        <div className="flex-1 relative bg-white">
+        <div className="flex-1 relative bg-white min-h-0">
             <FileExplorer 
                 files={files} 
                 loading={isLoading}
