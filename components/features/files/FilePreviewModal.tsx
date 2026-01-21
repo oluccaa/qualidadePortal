@@ -86,7 +86,7 @@ export const FilePreviewModal: React.FC<{
           </div>
           
           <div className="flex items-center gap-1.5 bg-black/40 p-1.5 rounded-2xl border border-white/5">
-            <ToolButton icon={Hand} active={activeTool === 'hand'} onClick={() => setActiveTool('hand')} label="Pan" />
+            <ToolButton icon={Hand} active={activeTool === 'hand'} onClick={() => setActiveTool('hand'} label="Pan" />
             <div className="w-px h-6 bg-white/10 mx-1" />
             <ToolButton icon={Pencil} active={activeTool === 'pencil'} onClick={() => setActiveTool('pencil')} label="Lápis" />
             <ToolButton icon={Highlighter} active={activeTool === 'marker'} onClick={() => setActiveTool('marker')} label="Marcador" />
@@ -145,6 +145,7 @@ export const FilePreviewModal: React.FC<{
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-10 bg-white">
             <div className="max-w-2xl mx-auto">
+              {/* Fix: Removed onUploadReplacement prop as it is not defined in AuditWorkflowProps */}
               <AuditWorkflow 
                 metadata={currentFile?.metadata} 
                 userRole={user?.role as UserRole} 
@@ -152,7 +153,6 @@ export const FilePreviewModal: React.FC<{
                 userEmail={user?.email || ''}
                 fileId={currentFile?.id || ''}
                 onUpdate={handleUpdateMetadata}
-                onUploadReplacement={() => replacementInputRef.current?.click()}
               />
             </div>
         </div>

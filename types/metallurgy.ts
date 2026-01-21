@@ -19,7 +19,7 @@ export interface MechanicalProperties {
 export interface AuditSignature {
   userId: string;
   userName: string;
-  userEmail?: string; // Novo campo para rastreabilidade
+  userEmail: string; // Obrigatório para rastreabilidade
   userRole: string;
   timestamp: ISO8601Date;
   action: string;
@@ -37,8 +37,8 @@ export interface FileVersion {
 export type AnnotationType = 'pencil' | 'marker' | 'rect' | 'circle' | 'eraser';
 
 export interface NormalizedPoint {
-  x: number; // 0.0 to 1.0
-  y: number; // 0.0 to 1.0
+  x: number;
+  y: number;
 }
 
 export interface AnnotationItem {
@@ -46,66 +46,53 @@ export interface AnnotationItem {
   type: AnnotationType;
   color: string;
   lineWidth: number;
-  points?: NormalizedPoint[]; // Para pencil e marker
-  startPoint?: NormalizedPoint; // Para shapes
-  endPoint?: NormalizedPoint;   // Para shapes
+  points?: NormalizedPoint[];
+  startPoint?: NormalizedPoint;
+  endPoint?: NormalizedPoint;
   opacity?: number;
 }
 
-// Manifesto completo de anotações do documento
 export type DocumentAnnotations = Record<number, AnnotationItem[]>;
 
 export interface SteelBatchMetadata {
   batchNumber: string;
   grade: string;
   invoiceNumber: string;
-  
-  // Controle de Versão
   currentVersion: number;
   versionHistory: FileVersion[];
-  
-  // Controle de Fluxo
-  currentStep: number; // 1 a 7
+  currentStep: number;
 
-  // Propriedades de Rastreabilidade e Interação
   viewedAt?: ISO8601Date;
   clientObservations?: string;
   replacementFileId?: string;
-
-  // Fix: Added audit tracking properties to support the audit workflow in FilePreviewPage
   auditStartTime?: ISO8601Date;
   auditDurationSeconds?: number;
   
-  // Assinaturas de Etapas (Tracing Completo)
+  // Protocolo Vital - 7 Passos
   signatures: {
     step1_release?: AuditSignature;
     step2_documental?: AuditSignature;
     step3_physical?: AuditSignature;
-    step4_contestation?: AuditSignature;
-    step5_mediation_review?: AuditSignature;
-    step6_system_log?: AuditSignature;
-    step7_final_verdict?: AuditSignature;
+    step4_arbitrage?: AuditSignature;
+    step5_partner_verdict?: AuditSignature;
+    step6_consolidation?: AuditSignature;
+    step7_certification?: AuditSignature;
   };
 
-  // Status de Etapas
   documentalStatus?: 'APPROVED' | 'REJECTED' | 'PENDING';
   physicalStatus?: 'APPROVED' | 'REJECTED' | 'PENDING';
-  mediationStatus?: 'APPROVED' | 'REJECTED' | 'PENDING';
-
-  // Conteúdo de Mediação
-  analystContestationNote?: string;
-  clientMediationNote?: string;
-
-  // Etapa 2: Conferência Documental/Física
-  documentalNotes?: string;
-  documentalFlags?: string[];
-  documentalDrawings?: string; 
   
+  documentalNotes?: string;
+  documentalDrawings?: string; 
   physicalNotes?: string;
+  
+  /**
+   * Fix: Added missing properties used in inspection workflows and snapshots
+   */
+  documentalFlags?: string[];
   physicalFlags?: string[];
   physicalPhotos?: string[];
   
-  // Global
   status: QualityStatus;
   chemicalComposition: ChemicalComposition;
   mechanicalProperties: MechanicalProperties;
