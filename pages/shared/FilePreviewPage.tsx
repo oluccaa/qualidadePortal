@@ -126,8 +126,11 @@ export const FilePreviewPage: React.FC = () => {
       <div className="flex-1 relative overflow-hidden bg-[radial-gradient(circle_at_center,_#0f172a_0%,_#020617_100%)]">
         {url ? (
           <PdfViewport 
-            url={url} pageNum={pageNum} zoom={zoom} 
+            url={url} 
+            pageNum={pageNum} 
+            zoom={zoom} 
             onPdfLoad={setNumPages} 
+            onZoomChange={setZoom}
             isHandToolActive={activeTool === 'hand'}
             renderOverlay={(w, h) => shouldShowAnnotations ? (
               <DrawingCanvas 
@@ -169,7 +172,12 @@ export const FilePreviewPage: React.FC = () => {
         <div className="w-px h-6 bg-white/10 mx-1" />
 
         <div className="flex items-center gap-1">
-          <ToolBtn icon={Hand} active={activeTool === 'hand'} onClick={() => setActiveTool('hand')} title="Mãozinha (Pan)" />
+          <ToolBtn 
+            icon={Hand} 
+            active={activeTool === 'hand'} 
+            onClick={() => setActiveTool(activeTool === 'hand' ? 'pencil' : 'hand')} 
+            title="Mãozinha (Pan e Zoom)" 
+          />
           
           {isAuditMode && canAnnotate && (
             <div className="relative">
@@ -182,11 +190,11 @@ export const FilePreviewPage: React.FC = () => {
                   <div className="space-y-3">
                     <p className="text-[8px] font-black uppercase text-slate-500 tracking-[3px] text-center">Ferramentas de Traço</p>
                     <div className="flex justify-center gap-1">
-                      <ToolBtn icon={Pencil} active={activeTool === 'pencil'} onClick={() => setActiveTool('pencil')} />
-                      <ToolBtn icon={Highlighter} active={activeTool === 'marker'} onClick={() => setActiveTool('marker')} />
-                      <ToolBtn icon={Square} active={activeTool === 'rect'} onClick={() => setActiveTool('rect')} />
-                      <ToolBtn icon={Circle} active={activeTool === 'circle'} onClick={() => setActiveTool('circle')} />
-                      <ToolBtn icon={Eraser} active={activeTool === 'eraser'} onClick={() => setActiveTool('eraser')} />
+                      <ToolBtn icon={Pencil} active={activeTool === 'pencil'} onClick={() => {setActiveTool('pencil'); setShowToolsMenu(false);}} />
+                      <ToolBtn icon={Highlighter} active={activeTool === 'marker'} onClick={() => {setActiveTool('marker'); setShowToolsMenu(false);}} />
+                      <ToolBtn icon={Square} active={activeTool === 'rect'} onClick={() => {setActiveTool('rect'); setShowToolsMenu(false);}} />
+                      <ToolBtn icon={Circle} active={activeTool === 'circle'} onClick={() => {setActiveTool('circle'); setShowToolsMenu(false);}} />
+                      <ToolBtn icon={Eraser} active={activeTool === 'eraser'} onClick={() => {setActiveTool('eraser'); setShowToolsMenu(false);}} />
                     </div>
                   </div>
                   <div className="space-y-3">
@@ -200,11 +208,11 @@ export const FilePreviewPage: React.FC = () => {
                   <div className="space-y-3">
                     <p className="text-[8px] font-black uppercase text-slate-500 tracking-[3px] text-center">Carimbos de Auditoria</p>
                     <div className="flex gap-2">
-                       <button onClick={() => { setActiveTool('stamp'); setStampText('APROVADO'); }} className={`flex-1 py-2 rounded-xl flex flex-col items-center gap-1 transition-all border ${activeTool === 'stamp' && stampText === 'APROVADO' ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400' : 'bg-white/5 border-white/5 text-slate-400 hover:bg-emerald-600/10'}`}>
+                       <button onClick={() => { setActiveTool('stamp'); setStampText('APROVADO'); setShowToolsMenu(false); }} className={`flex-1 py-2 rounded-xl flex flex-col items-center gap-1 transition-all border ${activeTool === 'stamp' && stampText === 'APROVADO' ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400' : 'bg-white/5 border-white/5 text-slate-400 hover:bg-emerald-600/10'}`}>
                           <CheckCircle2 size={16} />
                           <span className="text-[7px] font-black uppercase">APROVAR</span>
                        </button>
-                       <button onClick={() => { setActiveTool('stamp'); setStampText('REJEITADO'); }} className={`flex-1 py-2 rounded-xl flex flex-col items-center gap-1 transition-all border ${activeTool === 'stamp' && stampText === 'REJEITADO' ? 'bg-red-600/20 border-red-500 text-red-400' : 'bg-white/5 border-white/5 text-slate-400 hover:bg-red-600/10'}`}>
+                       <button onClick={() => { setActiveTool('stamp'); setStampText('REJEITADO'); setShowToolsMenu(false); }} className={`flex-1 py-2 rounded-xl flex flex-col items-center gap-1 transition-all border ${activeTool === 'stamp' && stampText === 'REJEITADO' ? 'bg-red-600/20 border-red-500 text-red-400' : 'bg-white/5 border-white/5 text-slate-400 hover:bg-red-600/10'}`}>
                           <XCircle size={16} />
                           <span className="text-[7px] font-black uppercase">REJEITAR</span>
                        </button>
@@ -227,9 +235,11 @@ export const FilePreviewPage: React.FC = () => {
 
         <div className="flex items-center gap-1">
           <ToolBtn icon={ZoomOut} onClick={() => setZoom(Math.max(0.2, zoom - 0.25))} />
-          <button onClick={handleResetView} className="px-3 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[9px] font-black text-slate-400 transition-all uppercase tracking-widest">
-            {Math.round(zoom * 100)}%
-          </button>
+          <div className="px-3 py-2 bg-white/5 rounded-xl min-w-[50px] text-center">
+            <span className="text-[9px] font-black text-blue-400 transition-all uppercase tracking-widest">
+              {Math.round(zoom * 100)}%
+            </span>
+          </div>
           <ToolBtn icon={ZoomIn} onClick={() => setZoom(Math.min(5, zoom + 0.25))} />
           <ToolBtn icon={RotateCcw} onClick={handleResetView} title="Reset View" />
         </div>

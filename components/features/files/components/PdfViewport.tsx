@@ -12,12 +12,13 @@ interface PdfViewportProps {
   zoom: number;
   pageNum: number;
   onPdfLoad: (numPages: number) => void;
+  onZoomChange?: (newZoom: number) => void;
   renderOverlay?: (width: number, height: number) => React.ReactNode;
   isHandToolActive?: boolean;
 }
 
 export const PdfViewport: React.FC<PdfViewportProps> = ({ 
-  url, zoom, pageNum, onPdfLoad, renderOverlay, isHandToolActive = false
+  url, zoom, pageNum, onPdfLoad, onZoomChange, renderOverlay, isHandToolActive = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -31,7 +32,7 @@ export const PdfViewport: React.FC<PdfViewportProps> = ({
   const renderTaskRef = useRef<any>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Limpeza profunda de memória
+  // Limpeza de memória
   const cleanup = useCallback(() => {
     if (renderTaskRef.current) {
       try { renderTaskRef.current.cancel(); } catch (e) {}
@@ -127,44 +128,64 @@ export const PdfViewport: React.FC<PdfViewportProps> = ({
     renderPage(); 
   }, [renderPage]);
 
-  // PANNING e KEYBOARD
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!containerRef.current) return;
-      const step = 80;
-      if (e.key === 'ArrowUp') containerRef.current.scrollTop -= step;
-      if (e.key === 'ArrowDown') containerRef.current.scrollTop += step;
-      if (e.key === 'ArrowLeft') containerRef.current.scrollLeft -= step;
-      if (e.key === 'ArrowRight') containerRef.current.scrollLeft += step;
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  // LOGICA DE ZOOM VIA MOUSE WHEEL
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (!onZoomChange) return;
+    
+    // Se o usuário estiver scrollando com a mãozinha ou apenas no container
+    // mas não queremos que o scroll padrão de página interfira na precisão
+    // e.preventDefault(); // Comentado para permitir scroll natural se não houver zoom
 
+    const zoomStep = 0.1;
+    if (e.deltaY < 0) {
+      // Scroll UP -> Zoom IN
+      onZoomChange(Math.min(5, zoom + zoomStep));
+    } else {
+      // Scroll DOWN -> Zoom OUT
+      onZoomChange(Math.max(0.2, zoom - zoomStep));
+    }
+  }, [zoom, onZoomChange]);
+
+  // LOGICA DE PANNING (Mãozinha)
   const [drag, setDrag] = useState({ isDragging: false, x: 0, y: 0, scrollL: 0, scrollT: 0 });
+  
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!isHandToolActive || !containerRef.current) return;
+    
     setDrag({
-      isDragging: true, x: e.clientX, y: e.clientY,
+      isDragging: true, 
+      x: e.clientX, 
+      y: e.clientY,
       scrollL: containerRef.current.scrollLeft,
       scrollT: containerRef.current.scrollTop
     });
   };
+
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!drag.isDragging || !containerRef.current) return;
-    containerRef.current.scrollLeft = drag.scrollL - (e.clientX - drag.x);
-    containerRef.current.scrollTop = drag.scrollT - (e.clientY - drag.y);
+    if (!drag.isDragging || !containerRef.current || !isHandToolActive) return;
+    
+    // Calcula o deslocamento e aplica ao scroll do container
+    const dx = e.clientX - drag.x;
+    const dy = e.clientY - drag.y;
+    
+    containerRef.current.scrollLeft = drag.scrollL - dx;
+    containerRef.current.scrollTop = drag.scrollT - dy;
+  };
+
+  const handleMouseUp = () => {
+    setDrag(d => ({ ...d, isDragging: false }));
   };
 
   return (
     <div 
       ref={containerRef}
+      onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
-      onMouseUp={() => setDrag(d => ({ ...d, isDragging: false }))}
-      onMouseLeave={() => setDrag(d => ({ ...d, isDragging: false }))}
-      className={`flex-1 overflow-auto bg-[#020617] relative custom-scrollbar flex justify-center items-start p-12 select-none focus:outline-none ${
-        isHandToolActive ? (drag.isDragging ? 'cursor-grabbing' : 'cursor-grab') : ''
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      className={`flex-1 overflow-auto bg-[#020617] relative custom-scrollbar flex justify-center items-start p-12 select-none focus:outline-none transition-all duration-75 ${
+        isHandToolActive ? (drag.isDragging ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default'
       }`}
     >
       <div 
