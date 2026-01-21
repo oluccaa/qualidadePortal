@@ -1,8 +1,9 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../context/authContext.tsx';
 import { useToast } from '../../../../context/notificationContext.tsx';
-import { FileNode, QualityStatus, FileType, SteelBatchMetadata } from '../../../../types/index.ts';
+import { FileNode, SteelBatchMetadata } from '../../../../types/index.ts';
 import { qualityService, fileService } from '../../../../lib/services/index.ts';
 import { supabase } from '../../../../lib/supabaseClient.ts';
 
@@ -12,7 +13,7 @@ export const useFileInspection = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
 
-  const [inspectorFile, setInspectorFile] = useState<any | null>(null);
+  const [inspectorFile, setInspectorFile] = useState<FileNode | null>(null);
   const [loadingFile, setLoadingFile] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [mainPreviewUrl, setMainPreviewUrl] = useState<string | null>(null);
@@ -22,29 +23,9 @@ export const useFileInspection = () => {
     if (!user || !fileId) return;
     setLoadingFile(true);
     try {
-      // Query robusta utilizando o mapeamento explícito da coluna owner_id
-      const { data, error } = await supabase
-        .from('files')
-        .select('*, organizations:owner_id(name)')
-        .eq('id', fileId)
-        .maybeSingle();
-        
-      if (error) {
-          console.error("[Quality Sync Error] Database failure:", error);
-          throw error;
-      }
-
-      if (!data) throw new Error("Ativo não localizado no Ledger.");
-
-      const file = {
-        ...data,
-        ownerId: data.owner_id,
-        type: data.type as FileType,
-        updatedAt: data.updated_at,
-        storagePath: data.storage_path,
-        metadata: data.metadata 
-      };
-
+      // Usamos o serviço centralizado para evitar queries malformadas e garantir tratamento de RLS
+      const file = await fileService.getFile(user, fileId);
+      
       setInspectorFile(file);
 
       // Sincroniza a URL do laudo original
@@ -59,7 +40,7 @@ export const useFileInspection = () => {
       
     } catch (err: any) {
       console.error("[Quality Sync Critical] Redirecting due to:", err);
-      showToast("Falha na sincronização técnica.", 'error');
+      showToast(err.message || "Falha na sincronização técnica.", 'error');
       navigate(-1);
     } finally {
       setLoadingFile(false);
@@ -80,7 +61,7 @@ export const useFileInspection = () => {
       
       setInspectorFile(prev => prev ? ({ 
         ...prev, 
-        metadata: { ...prev.metadata!, ...updates } 
+        metadata: { ...prev.metadata!, ...updates } as SteelBatchMetadata
       }) : null);
     } catch (err) {
       showToast("Falha ao gravar veredito no ledger.", 'error');

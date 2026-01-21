@@ -4,7 +4,7 @@ import { AuditWorkflow } from '../components/AuditWorkflow.tsx';
 import { ProcessingOverlay, QualityLoadingState } from '../components/ViewStates.tsx';
 import { useFileInspection } from '../hooks/useFileInspection.ts';
 import { ArrowLeft, AlertCircle, ShieldCheck, Database, ExternalLink, FileText, Info, Building2, Terminal, ClipboardList, Users, Clock } from 'lucide-react';
-import { QualityStatus, UserRole, normalizeRole } from '../../../../types/index.ts';
+import { QualityStatus, UserRole, normalizeRole, FileNode } from '../../../../types/index.ts';
 
 export const FileInspection: React.FC = () => {
   const {
@@ -53,13 +53,12 @@ export const FileInspection: React.FC = () => {
   };
 
   const getOrganizationName = () => {
-      const org = inspectorFile.organizations;
-      const orgName = Array.isArray(org) ? org[0]?.name : org?.name;
-      const baseName = orgName || user?.organizationName || 'N/A';
+      const baseName = inspectorFile.organizationName || user?.organizationName || 'N/A';
       
       const repName = inspectorFile.metadata?.signatures?.step6_consolidation_client?.userName || 
                      inspectorFile.metadata?.signatures?.step5_partner_verdict?.userName ||
                      inspectorFile.metadata?.signatures?.step2_documental?.userName ||
+                     // Fix: lastClientInteractionBy is now part of SteelBatchMetadata interface
                      inspectorFile.metadata?.lastClientInteractionBy;
 
       return repName ? `${baseName} (Rep: ${repName})` : baseName;
@@ -85,12 +84,16 @@ export const FileInspection: React.FC = () => {
     if (s2Done && s3Done) {
       if (meta.documentalStatus === 'APPROVED' && meta.physicalStatus === 'APPROVED') units += 2;
       else {
-        if (sigs.step4_contestation) units += 1;
-        if (sigs.step5_mediation_review) units += 1;
+        // Fix: Changed step4_contestation to step4_arbitrage to match signatures interface
+        if (sigs.step4_arbitrage) units += 1;
+        // Fix: Changed step5_mediation_review to step5_partner_verdict to match signatures interface
+        if (sigs.step5_partner_verdict) units += 1;
       }
     }
-    if (sigs.step6_system_log) units += 1;
-    if (sigs.step7_final_verdict) units += 1;
+    // Fix: Changed step6_system_log to step6_consolidation_quality to match signatures interface
+    if (sigs.step6_consolidation_quality) units += 1;
+    // Fix: Changed step7_final_verdict to step7_certification to match signatures interface
+    if (sigs.step7_certification) units += 1;
 
     return Math.min(Math.round((units / totalUnits) * 100), 100);
   };

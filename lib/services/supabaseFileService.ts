@@ -1,3 +1,4 @@
+
 import { supabase } from '../supabaseClient.ts';
 import { FileNode, FileType, BreadcrumbItem, User, UserRole, FileFilters, SteelBatchMetadata } from '../../types/index.ts';
 import { IFileService, PaginatedResponse, DashboardStatsData } from './interfaces.ts';
@@ -7,7 +8,8 @@ const STORAGE_BUCKET = 'certificates';
 
 export const SupabaseFileService: IFileService = {
   getRawFiles: async (folderId, page = 1, pageSize = 50, searchTerm = '', ownerId, filters?: FileFilters): Promise<PaginatedResponse<FileNode>> => {
-    let query = supabase.from('files').select('*, profiles:uploaded_by(full_name)', { count: 'exact' });
+    // Usando a constraint explícita do schema para o perfil do autor
+    let query = supabase.from('files').select('*, profiles!files_uploaded_by_fkey(full_name)', { count: 'exact' });
 
     if (ownerId && ownerId !== 'global') query = query.eq('owner_id', ownerId);
     
@@ -45,9 +47,10 @@ export const SupabaseFileService: IFileService = {
   getFile: async (user, fileId) => {
     if (!fileId) throw new Error("Identificador de arquivo ausente.");
 
+    // Correção das constraints: files_uploaded_by_fkey e files_owner_id_fkey conforme o schema SQL
     const { data, error } = await supabase
       .from('files')
-      .select('*, profiles:uploaded_by(full_name)')
+      .select('*, profiles!files_uploaded_by_fkey(full_name), organizations!files_owner_id_fkey(name)')
       .eq('id', fileId)
       .maybeSingle();
 
@@ -58,7 +61,7 @@ export const SupabaseFileService: IFileService = {
 
     if (!data) {
         console.warn(`[SupabaseFileService] Arquivo ${fileId} não localizado ou sem permissão.`);
-        throw new Error("Não foi possível localizar o registro do arquivo no banco de dados.");
+        throw new Error("Ativo não localizado no Ledger.");
     }
 
     return toDomainFile(data);

@@ -30,6 +30,7 @@ export interface FileNode {
   authorName?: string;
   lastModifierName?: string;
   versionNumber?: number;
+  organizationName?: string;
 }
 
 export interface FileFilters {

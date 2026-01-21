@@ -67,6 +67,12 @@ export interface SteelBatchMetadata {
   auditStartTime?: ISO8601Date;
   auditDurationSeconds?: number;
   
+  // Fix: Added missing interaction tracking properties for audit trail
+  lastClientInteractionAt?: ISO8601Date;
+  lastClientInteractionBy?: string;
+  lastInteractionAt?: ISO8601Date;
+  lastInteractionBy?: string;
+  
   signatures: {
     step1_release?: AuditSignature;
     step2_documental?: AuditSignature;
