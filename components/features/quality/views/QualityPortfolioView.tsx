@@ -24,10 +24,17 @@ export const QualityPortfolioView: React.FC = () => {
 
   if (isEmpty) {
     return (
-        <div className="py-24 bg-white border border-slate-200 rounded-[2.5rem] flex flex-col items-center justify-center text-slate-300 text-center px-10">
-            <ShieldCheck size={64} className="mb-6 opacity-10" />
-            <h3 className="text-lg font-black text-slate-400 uppercase tracking-[4px]">Tudo em conformidade</h3>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 max-w-xs">Seu fluxo de trabalho está limpo. Não há certificados pendentes de ação.</p>
+        <div className="py-24 bg-white border border-slate-200 rounded-[2.5rem] flex flex-col items-center justify-center text-center px-10 animate-in fade-in zoom-in-95 duration-700 shadow-sm">
+            <div className="relative mb-8">
+                <div className="absolute inset-0 bg-emerald-500/20 blur-3xl rounded-full animate-pulse" />
+                <div className="w-24 h-24 bg-emerald-50 border-2 border-emerald-100 rounded-3xl flex items-center justify-center relative z-10 shadow-inner">
+                    <ShieldCheck size={48} className="text-emerald-500" />
+                </div>
+            </div>
+            <h3 className="text-lg font-black text-slate-800 uppercase tracking-[4px]">Tudo em conformidade</h3>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 max-w-xs leading-relaxed">
+              Seu fluxo de trabalho está limpo. <br/>Não há certificados pendentes de ação.
+            </p>
         </div>
     );
   }
