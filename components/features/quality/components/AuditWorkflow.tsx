@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Check, Key, Activity, FileText, ShieldCheck, 
   Truck, Gavel, UserCheck, Lock, Award, AlertTriangle, XCircle,
-  MessageSquare, Eye, Plus, X, UploadCloud, RefreshCcw
+  MessageSquare, Eye, Plus, X, UploadCloud, RefreshCcw, Clock
 } from 'lucide-react';
 import { SteelBatchMetadata, QualityStatus, UserRole, AuditSignature } from '../../../../types/index.ts';
 import { useToast } from '../../../../context/notificationContext.tsx';
@@ -212,7 +212,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
             )}
         </StepCard>
 
-        {/* 7. RESULTADO / SUBSTITUIÇÃO */}
+        {/* 7. RESULTADO / SUBSTITUIÇÃO (RESTRITO AO QUALITY) */}
         <StepCard step={7} title="7. Protocolo Vital Certificado" completed={s6} active={s6} icon={Award}>
             {s6 && (
                 <div className="animate-in fade-in duration-500">
@@ -223,13 +223,38 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            <div className="p-3 bg-red-50 rounded-lg border border-red-100 text-[10px] font-bold text-red-700 uppercase">Aguardando arquivo substituto (v{(metadata?.currentVersion || 1) + 1}.0)</div>
-                            {onUploadReplacement && (
-                                <button onClick={() => fileInputRef.current?.click()} className="w-full p-4 border-2 border-dashed border-blue-200 rounded-xl hover:bg-blue-50 flex flex-col items-center gap-2 group transition-all">
-                                    <UploadCloud size={24} className="text-blue-400 group-hover:scale-110" />
-                                    <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Upar Substituição</span>
-                                </button>
-                            )}
+                            {/* Mensagem de Reprovação para ambos */}
+                            <div className="p-3 bg-red-50 rounded-lg border border-red-100 flex items-center gap-2">
+                                <AlertTriangle size={14} className="text-red-600" />
+                                <span className="text-[10px] font-bold text-red-700 uppercase">Fluxo Encerrado com Reprovação</span>
+                            </div>
+
+                            {/* Caso seja QUALITY: Mostrar zona de upload */}
+                            {isQuality && onUploadReplacement ? (
+                                <div className="space-y-2">
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Zona de Retificação Técnica</p>
+                                    <button onClick={() => fileInputRef.current?.click()} className="w-full p-4 border-2 border-dashed border-blue-200 rounded-xl hover:bg-blue-50 flex flex-col items-center gap-2 group transition-all">
+                                        <UploadCloud size={24} className="text-blue-400 group-hover:scale-110" />
+                                        <div className="text-center">
+                                            <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest block">Upar Substituição</span>
+                                            <span className="text-[8px] text-slate-400 font-bold uppercase">v{(metadata?.currentVersion || 1) + 1}.0</span>
+                                        </div>
+                                    </button>
+                                </div>
+                            ) : isClient ? (
+                                /* Caso seja CLIENT: Mostrar mensagem de espera */
+                                <div className="p-5 bg-blue-50 border border-blue-100 rounded-2xl flex flex-col items-center text-center gap-3 animate-pulse">
+                                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 shadow-sm">
+                                        <Clock size={20} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-blue-900 uppercase tracking-tight">Aguardando Retificação Técnica</p>
+                                        <p className="text-[9px] text-blue-600 font-bold uppercase tracking-widest mt-1 leading-relaxed">
+                                            Uma nova versão deste laudo será disponibilizada <br/> em breve pela equipe de Qualidade da Vital.
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : null}
                         </div>
                     )}
                 </div>
