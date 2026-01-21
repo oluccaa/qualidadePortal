@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
@@ -45,14 +46,17 @@ export const FilePreviewPage: React.FC = () => {
     handleDownload, handleUpdateMetadata, isSyncing
   } = useFilePreview(user, initialFileStub);
 
+  // Carrega anotações do banco de dados (metadados do Ledger)
   useEffect(() => {
     if (currentFile?.metadata?.documentalDrawings) {
       try {
         const saved = JSON.parse(currentFile.metadata.documentalDrawings);
         setAnnotations(saved);
-      } catch (e) { console.error(e); }
+      } catch (e) { 
+        console.error("Erro ao decodificar anotações do Ledger:", e); 
+      }
     }
-  }, [currentFile?.id]);
+  }, [currentFile?.id, currentFile?.metadata?.documentalDrawings]);
 
   const handleGoToWorkflow = () => {
     navigate(`/quality/inspection/${fileId}`);
@@ -66,16 +70,17 @@ export const FilePreviewPage: React.FC = () => {
     }
   };
 
+  // ÚNICO PONTO DE PERSISTÊNCIA: Botão "Persistir Alterações"
   const handleSaveAndReturn = async () => {
     if (!currentFile || !canAnnotate) return;
     try {
         await handleUpdateMetadata({ 
             documentalDrawings: JSON.stringify(annotations)
         });
-        showToast("Estação de Anotação sincronizada.", "success");
+        showToast("Estação de Anotação sincronizada com o Ledger.", "success");
         navigate(`/quality/inspection/${fileId}`);
     } catch (e) {
-        showToast("Erro ao persistir no Ledger.", "error");
+        showToast("Falha técnica ao persistir no banco industrial.", "error");
     }
   };
 
@@ -106,7 +111,7 @@ export const FilePreviewPage: React.FC = () => {
             <div className="flex items-center gap-2 mt-0.5">
                 <span className={`w-1.5 h-1.5 rounded-full ${isAuditMode ? 'bg-blue-500 animate-pulse' : 'bg-slate-500'}`} />
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                  {isQuality ? 'Modo de Inspeção (Leitura)' : isAuditMode ? 'Sessão de Auditoria Ativa' : 'Visualização Técnica'}
+                  {isQuality ? 'Visualização de Auditoria (Leitura)' : isAuditMode ? 'Sessão de Auditoria Ativa' : 'Inspeção Técnica'}
                 </span>
             </div>
           </div>
@@ -126,7 +131,7 @@ export const FilePreviewPage: React.FC = () => {
             ) : isQuality ? (
                 <button 
                   onClick={handleGoToWorkflow}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-[2px] flex items-center gap-2 transition-all shadow-lg"
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-50 text-white rounded-xl text-[10px] font-black uppercase tracking-[2px] flex items-center gap-2 transition-all shadow-lg"
                 >
                   <ClipboardList size={14} /> Retornar ao Fluxo
                 </button>

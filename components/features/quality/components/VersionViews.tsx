@@ -3,7 +3,8 @@ import React, { useRef, useState } from 'react';
 import { 
   History, FileUp, Clock, CheckCircle2, AlertCircle, 
   ArrowRight, Download, FileText, User, ShieldCheck, 
-  PlusCircle, Database
+  PlusCircle, Database, ChevronDown, ChevronUp, Eye,
+  Lock, Key, Truck, Gavel, UserCheck, Award
 } from 'lucide-react';
 import { FileNode, SteelBatchMetadata, UserRole } from '../../../../types/index.ts';
 
@@ -16,7 +17,6 @@ interface VersionSubViewProps {
 
 /**
  * ABA: GESTÃO DE NOVA VERSÃO
- * Focada no upload de documentos retificadores ou atualizações.
  */
 export const NewVersionUploadView: React.FC<VersionSubViewProps> = ({ file, userRole, onUpload }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -98,11 +98,15 @@ export const NewVersionUploadView: React.FC<VersionSubViewProps> = ({ file, user
 
 /**
  * ABA: HISTÓRICO LEDGER
- * Rastreabilidade completa de versões anteriores e logs de modificação.
  */
 export const VersionHistoryView: React.FC<VersionSubViewProps> = ({ file, onDownload }) => {
+  const [expandedVersion, setExpandedVersion] = useState<number | null>(null);
   const history = file.metadata?.versionHistory || [];
   
+  const toggleAnalysis = (version: number) => {
+    setExpandedVersion(expandedVersion === version ? null : version);
+  };
+
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
       <header className="flex items-center gap-4">
@@ -115,7 +119,7 @@ export const VersionHistoryView: React.FC<VersionSubViewProps> = ({ file, onDown
           </div>
       </header>
 
-      <div className="relative pl-10 space-y-12 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-1 before:bg-slate-100">
+      <div className="relative pl-10 space-y-8 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-1 before:bg-slate-100">
           
           {/* Versão Atual */}
           <div className="relative group">
@@ -126,22 +130,40 @@ export const VersionHistoryView: React.FC<VersionSubViewProps> = ({ file, onDown
                   <div className="flex justify-between items-start mb-4">
                       <div className="space-y-1">
                           <span className="px-2 py-0.5 bg-blue-600 text-white text-[8px] font-black uppercase rounded">Versão Atual</span>
-                          <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight mt-2">v{file.versionNumber || 1}.0 Final</h4>
+                          <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight mt-2">v{file.versionNumber || 1}.0 Ativo</h4>
                       </div>
                       <span className="text-[10px] font-mono text-slate-400 font-bold bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
                         {new Date(file.updatedAt).toLocaleString()}
                       </span>
                   </div>
-                  <p className="text-xs text-slate-500 font-medium leading-relaxed italic">Este é o documento ativo no ecossistema atual.</p>
+                  
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => toggleAnalysis(file.versionNumber || 1)}
+                      className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-900 transition-all"
+                    >
+                      {expandedVersion === (file.versionNumber || 1) ? <ChevronUp size={14}/> : <Eye size={14}/>}
+                      {expandedVersion === (file.versionNumber || 1) ? "Fechar Resumo" : "Analisar Protocolo"}
+                    </button>
+                    <button className="p-2 text-slate-400 hover:text-blue-600 transition-colors">
+                      <Download size={16} />
+                    </button>
+                  </div>
+
+                  {expandedVersion === (file.versionNumber || 1) && (
+                    <div className="mt-6 pt-6 border-t border-slate-100 animate-in slide-in-from-top-4 duration-300">
+                      <VersionAnalysisSummary metadata={file.metadata} />
+                    </div>
+                  )}
               </div>
           </div>
 
-          {/* Versões Anteriores (Mock ou Real) */}
+          {/* Versões Anteriores */}
           {history.length > 0 ? history.map((v, idx) => (
               <div key={idx} className="relative group">
                    <div className="absolute -left-[31px] top-0 w-6 h-6 rounded-full border-4 border-white bg-slate-300 shadow-sm z-10" />
                    <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-6 opacity-80 group-hover:opacity-100 transition-all">
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-center mb-2">
                             <div className="flex items-center gap-4">
                                 <div className="p-2 bg-white rounded-xl text-slate-400 shadow-sm"><FileText size={18}/></div>
                                 <div>
@@ -151,10 +173,25 @@ export const VersionHistoryView: React.FC<VersionSubViewProps> = ({ file, onDown
                                     </p>
                                 </div>
                             </div>
-                            <button className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 rounded-xl transition-all shadow-sm">
-                                <Download size={16} />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button 
+                                  onClick={() => toggleAnalysis(v.version)}
+                                  className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:border-blue-300 hover:text-blue-600 transition-all"
+                                >
+                                  {expandedVersion === v.version ? "Esconder" : "Analisar"}
+                                </button>
+                                <button className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 rounded-xl transition-all">
+                                    <Download size={14} />
+                                </button>
+                            </div>
                         </div>
+
+                        {expandedVersion === v.version && (
+                          <div className="mt-4 pt-4 border-t border-slate-200 animate-in slide-in-from-top-2">
+                            {/* Nota: Em um sistema real, aqui buscaríamos o snapshot da versão X no file_reviews */}
+                            <VersionAnalysisSummary isHistorical />
+                          </div>
+                        )}
                    </div>
               </div>
           )) : (
@@ -168,3 +205,76 @@ export const VersionHistoryView: React.FC<VersionSubViewProps> = ({ file, onDown
     </div>
   );
 };
+
+/**
+ * Componente de Resumo de Protocolo (Somente Leitura)
+ */
+const VersionAnalysisSummary: React.FC<{ metadata?: SteelBatchMetadata, isHistorical?: boolean }> = ({ metadata, isHistorical }) => {
+  const steps = [
+    { id: 1, label: "Liberação Vital", icon: Key, sig: metadata?.signatures?.step1_release },
+    { id: 2, label: "Conferência Dados", icon: FileText, sig: metadata?.signatures?.step2_documental, note: metadata?.documentalNotes },
+    { id: 3, label: "Vistoria de Carga", icon: Truck, sig: metadata?.signatures?.step3_physical, note: metadata?.physicalNotes },
+    { id: 4, label: "Arbitragem", icon: Gavel, sig: metadata?.signatures?.step4_arbitrage, note: metadata?.arbitrationNotes },
+    { id: 5, label: "Veredito Parceiro", icon: UserCheck, sig: metadata?.signatures?.step5_partner_verdict },
+    { id: 6, label: "Consolidação", icon: Lock, sig: metadata?.signatures?.step6_consolidation_quality },
+    { id: 7, label: "Certificação", icon: Award, sig: metadata?.signatures?.step7_certification },
+  ];
+
+  return (
+    <div className={`rounded-2xl p-6 ${isHistorical ? 'bg-white/40 border border-slate-200' : 'bg-slate-50 border border-slate-100'}`}>
+      <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-[3px] mb-6">Resumo de Estágios do Protocolo</h5>
+      
+      <div className="space-y-4">
+        {steps.map(step => (
+          <div key={step.id} className="flex items-start gap-4 group">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border transition-colors ${
+              step.sig ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-slate-100 border-slate-200 text-slate-400 opacity-40'
+            }`}>
+              <step.icon size={16} />
+            </div>
+            
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <p className={`text-[11px] font-black uppercase tracking-tight ${step.sig ? 'text-slate-800' : 'text-slate-400'}`}>
+                  {step.label}
+                </p>
+                {step.sig ? (
+                  <span className="text-[9px] font-bold text-emerald-600 uppercase bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">Finalizado</span>
+                ) : (
+                  <span className="text-[9px] font-bold text-slate-300 uppercase">Pendente</span>
+                )}
+              </div>
+              
+              {step.sig && (
+                <div className="mt-1 flex items-center gap-3 text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                  <span className="flex items-center gap-1"><User size={10}/> {step.sig.userName}</span>
+                  <span className="opacity-30">|</span>
+                  <span className="flex items-center gap-1"><Clock size={10}/> {new Date(step.sig.timestamp).toLocaleDateString()}</span>
+                </div>
+              )}
+
+              {step.note && (
+                <p className="mt-2 text-[10px] text-slate-600 font-medium italic border-l-2 border-slate-200 pl-3 leading-relaxed">
+                  "{step.note}"
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {isHistorical && (
+        <div className="mt-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100 flex items-center gap-3">
+          <Info size={16} className="text-blue-500 shrink-0" />
+          <p className="text-[9px] text-blue-700 font-medium leading-tight">
+            Estes dados representam o estado do protocolo no momento do arquivamento desta versão. Para visualizar o documento físico desta versão, utilize o botão de Download acima.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const Info = ({ size, className }: any) => (
+    <AlertCircle size={size} className={className} />
+);

@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { AnnotationItem, NormalizedPoint, AnnotationType } from '../../../../types/metallurgy.ts';
 
@@ -22,7 +23,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || width === 0 || height === 0) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -39,6 +40,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
       if (ann.type === 'pencil' || ann.type === 'marker' || ann.type === 'eraser') {
         if (ann.points && ann.points.length > 0) {
+          // Converte coordenada normalizada (0..1) para pixel real do viewport atual
           ctx.moveTo(ann.points[0].x * width, ann.points[0].y * height);
           ann.points.forEach(p => ctx.lineTo(p.x * width, p.y * height));
           ctx.stroke();
@@ -72,9 +74,11 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
+    
     const clientX = ('touches' in e) ? e.touches[0].clientX : e.clientX;
     const clientY = ('touches' in e) ? e.touches[0].clientY : e.clientY;
     
+    // Normalização rigorosa entre 0 e 1 para persistência em banco
     return {
       x: (clientX - rect.left) / width,
       y: (clientY - rect.top) / height
@@ -99,6 +103,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     const ctx = canvasRef.current.getContext('2d');
     if (!ctx) return;
 
+    // Feedback visual imediato usando pixels reais
     if (tool === 'pencil' || tool === 'marker' || tool === 'eraser') {
       ctx.beginPath();
       ctx.strokeStyle = tool === 'marker' ? `${color}66` : color;

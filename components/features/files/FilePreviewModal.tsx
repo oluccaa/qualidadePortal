@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   X, Download, ShieldCheck, FileText, Loader2, 
@@ -20,7 +21,6 @@ export const FilePreviewModal: React.FC<{
   const { user } = useAuth();
   const [activeTool, setActiveTool] = useState<DrawingTool>('hand');
   const [annotations, setAnnotations] = useState<DocumentAnnotations>({});
-  const replacementInputRef = useRef<HTMLInputElement>(null);
   
   const {
     currentFile,
@@ -31,8 +31,7 @@ export const FilePreviewModal: React.FC<{
     zoom,
     setZoom,
     handleUpdateMetadata,
-    handleDownload,
-    handleReplacementUpload
+    handleDownload
   } = useFilePreview(user, initialFile);
 
   useEffect(() => {
@@ -47,27 +46,12 @@ export const FilePreviewModal: React.FC<{
     } else {
         setAnnotations({});
     }
-  }, [currentFile?.id]);
-
-  const handleSaveAudited = async () => {
-    const data = JSON.stringify(annotations);
-    await handleUpdateMetadata({ 
-        documentalDrawings: data,
-    });
-  };
-
-  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && handleReplacementUpload) {
-      await handleReplacementUpload(file);
-    }
-  };
+  }, [currentFile?.id, currentFile?.metadata?.documentalDrawings]);
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[300] bg-[#020617] flex animate-in fade-in duration-500 overflow-hidden font-sans">
-      <input type="file" ref={replacementInputRef} onChange={onFileChange} className="hidden" accept=".pdf" />
       
       {/* Visualização Técnica com Camada de Desenho (Esquerda) */}
       <div className="w-1/2 relative border-r border-white/5 flex flex-col bg-[#020617]">
@@ -86,21 +70,13 @@ export const FilePreviewModal: React.FC<{
           </div>
           
           <div className="flex items-center gap-1.5 bg-black/40 p-1.5 rounded-2xl border border-white/5">
-            <ToolButton icon={Hand} active={activeTool === 'hand'} onClick={() => setActiveTool('hand'} label="Pan" />
+            <ToolButton icon={Hand} active={activeTool === 'hand'} onClick={() => setActiveTool('hand')} label="Pan" />
             <div className="w-px h-6 bg-white/10 mx-1" />
             <ToolButton icon={Pencil} active={activeTool === 'pencil'} onClick={() => setActiveTool('pencil')} label="Lápis" />
             <ToolButton icon={Highlighter} active={activeTool === 'marker'} onClick={() => setActiveTool('marker')} label="Marcador" />
             <ToolButton icon={Square} active={activeTool === 'rect'} onClick={() => setActiveTool('rect')} label="Retângulo" />
             <ToolButton icon={Circle} active={activeTool === 'circle'} onClick={() => setActiveTool('circle')} label="Círculo" />
             <ToolButton icon={Eraser} active={activeTool === 'eraser'} onClick={() => setActiveTool('eraser')} label="Borracha" />
-            
-            <button 
-                onClick={handleSaveAudited}
-                disabled={Object.keys(annotations).length === 0 || isSyncing}
-                className="ml-4 flex items-center gap-2.5 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[2px] hover:bg-blue-500 disabled:opacity-30 disabled:grayscale transition-all shadow-lg active:scale-95"
-            >
-                <Save size={16} /> Salvar Auditado
-            </button>
           </div>
         </header>
 
@@ -137,7 +113,7 @@ export const FilePreviewModal: React.FC<{
               </div>
               <div>
                 <h3 className="text-sm font-black text-[#081437] uppercase tracking-[4px]">Estação de Inspeção B2B</h3>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Sincronizado com o Core Vital</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Modo de Leitura de Metadados</p>
               </div>
            </div>
            <button onClick={onClose} className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-red-600 transition-all shadow-sm hover:shadow-lg active:scale-95"><X size={24} /></button>
@@ -145,7 +121,6 @@ export const FilePreviewModal: React.FC<{
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-10 bg-white">
             <div className="max-w-2xl mx-auto">
-              {/* Fix: Removed onUploadReplacement prop as it is not defined in AuditWorkflowProps */}
               <AuditWorkflow 
                 metadata={currentFile?.metadata} 
                 userRole={user?.role as UserRole} 
