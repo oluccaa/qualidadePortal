@@ -179,22 +179,44 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
 
         {/* 5. VEREDITO DO PARCEIRO - SOMENTE CLIENTE */}
         <StepCard step={5} title="5. Veredito do Parceiro" completed={s5} active={isStep4Done && !s5} signature={sigs.step5_partner_verdict} icon={UserCheck}>
-            {isClient && isStep4Done && !s5 && (
-                <div className="grid grid-cols-2 gap-3">
-                    <button 
-                        onClick={() => handleAction('step5_partner_verdict', { status: QualityStatus.APPROVED })}
-                        className="py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg"
-                    >
-                        Aceitar Lote
-                    </button>
-                    <button 
-                        onClick={() => handleAction('step5_partner_verdict', { status: QualityStatus.REJECTED })}
-                        className="py-3 bg-red-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg"
-                    >
-                        Rejeitar Lote
-                    </button>
-                </div>
-            )}
+            <div className="space-y-4">
+                {isClient && isStep4Done && !s5 && (
+                    <div className="grid grid-cols-2 gap-3">
+                        <button 
+                            onClick={() => handleAction('step5_partner_verdict', { status: QualityStatus.APPROVED })}
+                            className="py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg"
+                        >
+                            Aceitar Lote
+                        </button>
+                        <button 
+                            onClick={() => handleAction('step5_partner_verdict', { status: QualityStatus.REJECTED })}
+                            className="py-3 bg-red-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg"
+                        >
+                            Rejeitar Lote
+                        </button>
+                    </div>
+                )}
+
+                {s5 && (
+                    <div className={`p-4 rounded-2xl border flex items-center gap-4 animate-in fade-in duration-500 ${
+                        metadata?.status === QualityStatus.APPROVED 
+                            ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
+                            : 'bg-red-50 border-red-100 text-red-700'
+                    }`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 ${
+                             metadata?.status === QualityStatus.APPROVED ? 'bg-emerald-100 border-emerald-200' : 'bg-red-100 border-red-200'
+                        }`}>
+                            {metadata?.status === QualityStatus.APPROVED ? <Check size={18} strokeWidth={4} /> : <XCircle size={18} strokeWidth={2.5} />}
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-tight opacity-70">Resultado do Veredito:</p>
+                            <p className="text-xs font-black uppercase tracking-widest">
+                                {metadata?.status === QualityStatus.APPROVED ? 'Lote Aceito para Produção' : 'Lote Rejeitado pelo Parceiro'}
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </div>
         </StepCard>
 
         {/* 6. CONSOLIDAÇÃO DIGITAL - CLIENTE E QUALIDADE */}
