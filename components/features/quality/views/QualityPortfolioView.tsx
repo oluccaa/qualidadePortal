@@ -1,111 +1,191 @@
 import React from 'react';
 import { useQualityPortfolio } from '../hooks/useQualityPortfolio.ts';
 import { 
-  ArrowRight, AlertCircle, 
-  MessageSquare, ShieldCheck, Clock 
+  ArrowRight, AlertCircle, MessageSquare, ShieldCheck, 
+  Clock, Send, CheckCircle2, FileText, Activity
 } from 'lucide-react';
 import { QualityLoadingState } from '../components/ViewStates.tsx';
 import { useNavigate } from 'react-router-dom';
-import { QualityStatus, UserRole, normalizeRole } from '../../../../types/index.ts';
+import { QualityStatus, UserRole, normalizeRole, FileNode } from '../../../../types/index.ts';
 import { useAuth } from '../../../../context/authContext.tsx';
 
 export const QualityPortfolioView: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { pendingFiles, rejectedFiles, isLoading } = useQualityPortfolio();
+  const { pendingFiles, sentFiles, rejectedFiles, approvedFiles, isLoading } = useQualityPortfolio();
   
   const role = normalizeRole(user?.role);
   const isClient = role === UserRole.CLIENT;
 
   if (isLoading) return <QualityLoadingState message="Sincronizando Backlog Técnico..." />;
 
-  return (
-    <div className="space-y-12 animate-in fade-in duration-700 pb-10">
-      {/* SEÇÃO DE REJEIÇÕES (Monitor de Contestação) */}
-      <section className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-[10px] font-black uppercase tracking-[3px] text-red-500 flex items-center gap-2">
-              <AlertCircle size={14} /> 
-              {isClient ? "Aguardando Minha Ação / Corrigidos" : `Contestações Ativas (${rejectedFiles.length})`}
-          </h3>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Prioridade Crítica</span>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {rejectedFiles.map(file => (
-            <div 
-              key={file.id} 
-              onClick={() => navigate(isClient ? `/preview/${file.id}?mode=audit` : `/quality/inspection/${file.id}`)}
-              className="bg-white p-6 rounded-[2rem] border-2 border-red-100 hover:border-red-500 transition-all group cursor-pointer relative overflow-hidden shadow-sm hover:shadow-xl"
-            >
-              <div className="absolute top-0 right-0 p-4 opacity-5 text-red-600"><MessageSquare size={48} /></div>
-              <div className="flex items-center gap-2 mb-3">
-                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
-                      file.metadata?.status === QualityStatus.TO_DELETE ? 'bg-slate-900 text-white' : 'bg-red-600 text-white'
-                  }`}>
-                    {file.metadata?.status === QualityStatus.TO_DELETE ? 'Substituição Crítica' : (isClient ? 'Rever Contestação' : 'Ajustar Laudo')}
-                  </span>
-                  {!isClient && (
-                    <span className="text-[9px] font-bold text-slate-400 uppercase truncate max-w-[120px]">
-                        {file.ownerId?.split('-')[0]}
-                    </span>
-                  )}
-              </div>
-              <h4 className="text-sm font-black text-slate-800 mb-4 truncate uppercase tracking-tight">{file.name}</h4>
-              <p className="text-[10px] text-slate-500 font-medium line-clamp-2 mb-6 italic min-h-[30px]">
-                "{file.metadata?.clientObservations || 'O processo exige revisão técnica imediata.'}"
-              </p>
-              <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Acessar Estação</span>
-                <ArrowRight size={14} className="text-red-500 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-          ))}
-          {rejectedFiles.length === 0 && (
-            <div className="col-span-full py-16 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2.5rem] flex flex-col items-center justify-center text-slate-400 italic">
-              <ShieldCheck size={32} className="mb-3 opacity-20" />
-              <p className="text-xs font-bold uppercase tracking-widest">Nenhuma contestação ativa no momento.</p>
-            </div>
-          )}
-        </div>
-      </section>
+  const isEmpty = pendingFiles.length === 0 && sentFiles.length === 0 && 
+                  rejectedFiles.length === 0 && approvedFiles.length === 0;
 
-      {/* Backlog de Trabalho (Inspeções Pendentes) */}
-      <section className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-[10px] font-black uppercase tracking-[3px] text-slate-400 flex items-center gap-2">
-              <Clock size={14} /> 
-              {isClient ? `Certificados Aguardando Minha Conferência (${pendingFiles.length})` : `Novas Pendências de Triagem (${pendingFiles.length})`}
-          </h3>
+  if (isEmpty) {
+    return (
+        <div className="py-24 bg-white border border-slate-200 rounded-[2.5rem] flex flex-col items-center justify-center text-slate-300 text-center px-10">
+            <ShieldCheck size={64} className="mb-6 opacity-10" />
+            <h3 className="text-lg font-black text-slate-400 uppercase tracking-[4px]">Tudo em conformidade</h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 max-w-xs">Seu fluxo de trabalho está limpo. Não há certificados pendentes de ação.</p>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {pendingFiles.map(file => (
-            <div 
-              key={file.id} 
-              onClick={() => navigate(isClient ? `/preview/${file.id}?mode=audit` : `/quality/inspection/${file.id}`)}
-              className="bg-white p-6 rounded-[2rem] border border-slate-200 hover:border-blue-500/30 shadow-sm hover:shadow-xl transition-all group cursor-pointer"
-            >
-              <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1">
-                {isClient ? "Ação Requerida" : "Aguardando Triagem"}
-              </p>
-              <h4 className="text-sm font-black text-slate-800 mb-6 uppercase truncate tracking-tight">{file.name}</h4>
-              <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg font-bold font-mono">{file.size}</span>
-                <div className="flex items-center gap-2 text-blue-600 font-bold text-[10px] uppercase tracking-widest">
-                  {isClient ? "Conferir Dados" : "Analisar Laudo"} <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+    );
+  }
+
+  return (
+    <div className="space-y-16 animate-in fade-in duration-700 pb-20">
+      
+      {/* 1. CONTESTAÇÕES E DIVERGÊNCIAS (CRÍTICO) */}
+      {rejectedFiles.length > 0 && (
+        <section className="space-y-6">
+            <header className="flex items-center justify-between border-b border-red-100 pb-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-red-50 text-red-600 rounded-lg flex items-center justify-center shadow-sm">
+                        <AlertCircle size={18} />
+                    </div>
+                    <h3 className="text-xs font-black uppercase tracking-[3px] text-red-600">
+                        {isClient ? "Ações de Retificação Requeridas" : `Contestações Ativas (${rejectedFiles.length})`}
+                    </h3>
                 </div>
-              </div>
+                <span className="text-[9px] font-black bg-red-600 text-white px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">Prioridade Máxima</span>
+            </header>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {rejectedFiles.map(file => (
+                <FileWorkflowCard 
+                    key={file.id} 
+                    file={file} 
+                    variant="critical"
+                    onClick={() => navigate(isClient ? `/preview/${file.id}?mode=audit` : `/quality/inspection/${file.id}`)}
+                />
+            ))}
             </div>
-          ))}
-          {pendingFiles.length === 0 && (
-            <div className="col-span-full py-16 bg-white border border-slate-200 rounded-[2.5rem] flex flex-col items-center justify-center text-slate-300">
-               <ShieldCheck size={40} className="mb-4 opacity-10" />
-               <p className="text-xs font-black uppercase tracking-widest">Tudo em conformidade. Fluxo de trabalho limpo.</p>
+        </section>
+      )}
+
+      {/* 2. PENDÊNCIAS DE TRIAGEM (AGUARDANDO ABERTURA) */}
+      {pendingFiles.length > 0 && (
+        <section className="space-y-6">
+            <header className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                <div className="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center shadow-sm">
+                    <Clock size={18} />
+                </div>
+                <h3 className="text-xs font-black uppercase tracking-[3px] text-slate-500">
+                    {isClient ? "Novos Recebimentos (Ação Vital)" : `Aguardando Triagem Técnica (${pendingFiles.length})`}
+                </h3>
+            </header>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {pendingFiles.map(file => (
+                <FileWorkflowCard 
+                    key={file.id} 
+                    file={file} 
+                    variant="pending"
+                    onClick={() => navigate(isClient ? `/preview/${file.id}?mode=audit` : `/quality/inspection/${file.id}`)}
+                />
+            ))}
             </div>
-          )}
-        </div>
-      </section>
+        </section>
+      )}
+
+      {/* 3. EM CONFERÊNCIA (AGUARDANDO PARCEIRO) */}
+      {sentFiles.length > 0 && (
+        <section className="space-y-6">
+            <header className="flex items-center gap-3 border-b border-blue-100 pb-4">
+                <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                    <Send size={18} />
+                </div>
+                <h3 className="text-xs font-black uppercase tracking-[3px] text-blue-600">
+                    {isClient ? `Meus Certificados em Análise (${sentFiles.length})` : "Em Conferência com Parceiro"}
+                </h3>
+            </header>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {sentFiles.map(file => (
+                <FileWorkflowCard 
+                    key={file.id} 
+                    file={file} 
+                    variant="active"
+                    onClick={() => navigate(isClient ? `/preview/${file.id}?mode=audit` : `/quality/inspection/${file.id}`)}
+                />
+            ))}
+            </div>
+        </section>
+      )}
+
+      {/* 4. FINALIZADOS (HISTÓRICO) */}
+      {approvedFiles.length > 0 && (
+        <section className="space-y-6">
+            <header className="flex items-center gap-3 border-b border-emerald-100 pb-4 opacity-70">
+                <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center shadow-sm">
+                    <CheckCircle2 size={18} />
+                </div>
+                <h3 className="text-xs font-black uppercase tracking-[3px] text-emerald-700">Ativos Homologados / Concluídos</h3>
+            </header>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {approvedFiles.map(file => (
+                <FileWorkflowCard 
+                    key={file.id} 
+                    file={file} 
+                    variant="success"
+                    onClick={() => navigate(`/preview/${file.id}`)}
+                />
+            ))}
+            </div>
+        </section>
+      )}
     </div>
   );
+};
+
+interface CardProps {
+    file: FileNode;
+    variant: 'critical' | 'pending' | 'active' | 'success';
+    onClick: () => void;
+}
+
+const FileWorkflowCard: React.FC<CardProps> = ({ file, variant, onClick }) => {
+    const styles = {
+        critical: 'border-red-100 hover:border-red-500 shadow-red-500/5 hover:shadow-red-500/10',
+        pending: 'border-slate-200 hover:border-amber-400 shadow-slate-900/5',
+        active: 'border-blue-100 hover:border-blue-500 shadow-blue-500/5',
+        success: 'border-emerald-100 hover:border-emerald-500 opacity-80 hover:opacity-100'
+    };
+
+    const statusIcons = {
+        critical: <AlertCircle size={14} className="text-red-500" />,
+        pending: <Clock size={14} className="text-amber-500" />,
+        active: <Send size={14} className="text-blue-500" />,
+        success: <ShieldCheck size={14} className="text-emerald-500" />
+    };
+
+    return (
+        <div 
+            onClick={onClick}
+            className={`bg-white p-6 rounded-[2rem] border-2 transition-all group cursor-pointer relative overflow-hidden flex flex-col justify-between min-h-[180px] ${styles[variant]}`}
+        >
+            <div className="relative z-10 flex flex-col flex-1">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all shadow-inner">
+                        <FileText size={20} />
+                    </div>
+                    {statusIcons[variant]}
+                </div>
+                
+                <h4 className="text-[13px] font-black text-slate-800 uppercase leading-tight truncate mb-2">{file.name}</h4>
+                
+                {file.metadata?.clientObservations && variant === 'critical' && (
+                    <p className="text-[10px] text-slate-400 font-medium italic line-clamp-2 leading-relaxed">
+                        "{file.metadata.clientObservations}"
+                    </p>
+                )}
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between">
+                <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest group-hover:text-slate-900 transition-colors">Ver Detalhes</span>
+                <ArrowRight size={14} className="text-slate-300 group-hover:translate-x-1 transition-all" />
+            </div>
+        </div>
+    );
 };
