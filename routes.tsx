@@ -7,36 +7,37 @@ import { RoleMiddleware } from './middlewares/RoleMiddleware.tsx';
 import { MaintenanceMiddleware } from './middlewares/MaintenanceMiddleware.tsx';
 import { useAuth } from './context/authContext.tsx';
 import { UserRole, normalizeRole } from './types/index.ts';
+import { safeLazy } from './lib/utils/safeLazy.ts';
 
 /**
- * --- ESTRUTURA DE PÁGINAS ORGANIZADA POR DOMÍNIO ---
- * Cada role possui sua própria subpasta em /pages/
+ * --- ESTRUTURA DE PÁGINAS COM CARREGAMENTO RESILIENTE ---
+ * O safeLazy evita o erro de 'Failed to fetch' ao trocar de aba após um deploy.
  */
 
-// Autenticação (Acesso Público/Gateway)
-const ClientLoginPage = React.lazy(() => import('./pages/auth/ClientLoginPage.tsx'));
-const StaffLoginPage = React.lazy(() => import('./pages/auth/StaffLoginPage.tsx'));
+// Autenticação
+const ClientLoginPage = safeLazy(() => import('./pages/auth/ClientLoginPage.tsx'));
+const StaffLoginPage = safeLazy(() => import('./pages/auth/StaffLoginPage.tsx'));
 
-// Domínio Administrador (Governança e Infra)
-const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard.tsx'));
-const AdminConsole = React.lazy(() => import('./pages/admin/AdminConsole.tsx'));
+// Domínio Administrador
+const AdminDashboard = safeLazy(() => import('./pages/admin/AdminDashboard.tsx'));
+const AdminConsole = safeLazy(() => import('./pages/admin/AdminConsole.tsx'));
 
-// Domínio Qualidade (Operação Técnica e Auditoria)
-const QualityDashboard = React.lazy(() => import('./pages/quality/QualityDashboard.tsx'));
-const QualityMonitor = React.lazy(() => import('./pages/quality/QualityMonitor.tsx'));
-const QualityPortfolio = React.lazy(() => import('./pages/quality/QualityPortfolio.tsx'));
-const QualityAuditHistory = React.lazy(() => import('./pages/quality/QualityAuditHistory.tsx'));
-const QualityUserManagement = React.lazy(() => import('./pages/quality/QualityUserManagement.tsx'));
-const QualityExplorer = React.lazy(() => import('./pages/quality/QualityExplorer.tsx'));
-const FileInspection = React.lazy(() => import('./components/features/quality/views/FileInspection.tsx').then(m => ({ default: m.FileInspection })));
+// Domínio Qualidade
+const QualityDashboard = safeLazy(() => import('./pages/quality/QualityDashboard.tsx'));
+const QualityMonitor = safeLazy(() => import('./pages/quality/QualityMonitor.tsx'));
+const QualityPortfolio = safeLazy(() => import('./pages/quality/QualityPortfolio.tsx'));
+const QualityAuditHistory = safeLazy(() => import('./pages/quality/QualityAuditHistory.tsx'));
+const QualityUserManagement = safeLazy(() => import('./pages/quality/QualityUserManagement.tsx'));
+const QualityExplorer = safeLazy(() => import('./pages/quality/QualityExplorer.tsx'));
+const FileInspection = safeLazy(() => import('./components/features/quality/views/FileInspection.tsx').then(m => ({ default: m.FileInspection })));
 
-// Domínio Cliente (Portal do Parceiro e Ativos B2B)
-const ClientPortal = React.lazy(() => import('./pages/client/ClientPortal.tsx'));
+// Domínio Cliente
+const ClientPortal = safeLazy(() => import('./pages/client/ClientPortal.tsx'));
 
-// Domínio Compartilhado (Utilitários Globais)
-const FilePreviewPage = React.lazy(() => import('./pages/shared/FilePreviewPage.tsx'));
-const SettingsPage = React.lazy(() => import('./pages/shared/SettingsPage.tsx'));
-const NotFoundPage = React.lazy(() => import('./pages/shared/NotFoundPage.tsx'));
+// Domínio Compartilhado
+const FilePreviewPage = safeLazy(() => import('./pages/shared/FilePreviewPage.tsx'));
+const SettingsPage = safeLazy(() => import('./pages/shared/SettingsPage.tsx'));
+const NotFoundPage = safeLazy(() => import('./pages/shared/NotFoundPage.tsx'));
 
 const PageLoader = ({ message = "Sincronizando...", onRetry }: { message?: string; onRetry?: () => void }) => (
   <div className="h-screen w-screen bg-slate-50 flex flex-col items-center justify-center text-slate-600 font-sans">
@@ -70,31 +71,24 @@ export const AppRoutes: React.FC = () => {
   return (
     <Suspense fallback={<PageLoader message="Preparando Interface Vital..." />}>
       <Routes>
-        {/* Rotas Públicas */}
         <Route path="/" element={<InitialAuthRedirect />} />
         <Route path="/login" element={<ClientLoginPage />} />
         <Route path="/staff/login" element={<StaffLoginPage />} />
 
-        {/* Rotas Protegidas com Middleware de Manutenção e Auth */}
         <Route element={<MaintenanceMiddleware />}> 
             <Route element={<AuthMiddleware />}>
-                
-                {/* Acessos Globais */}
                 <Route path="/settings" element={<SettingsPage />} /> 
                 <Route path="/preview/:fileId" element={<FilePreviewPage />} />
                 
-                {/* Fluxo de Inspeção Compartilhado (Audit Flow) */}
                 <Route element={<RoleMiddleware allowedRoles={[UserRole.QUALITY, UserRole.CLIENT]} />}>
                     <Route path="/quality/inspection/:fileId" element={<FileInspection />} />
                 </Route>
 
-                {/* --- EXCLUSIVO ADMINISTRADOR --- */}
                 <Route element={<RoleMiddleware allowedRoles={[UserRole.ADMIN]} />}>
                     <Route path="/admin/dashboard" element={<AdminDashboard />} />
                     <Route path="/admin/console" element={<AdminConsole />} /> 
                 </Route>
 
-                {/* --- EXCLUSIVO QUALIDADE E ADMIN --- */}
                 <Route element={<RoleMiddleware allowedRoles={[UserRole.QUALITY]} />}>
                     <Route path="/quality/dashboard" element={<QualityDashboard />} />
                     <Route path="/quality/monitor" element={<QualityMonitor />} />
@@ -104,14 +98,12 @@ export const AppRoutes: React.FC = () => {
                     <Route path="/quality/audit" element={<QualityAuditHistory />} />
                 </Route>
 
-                {/* --- EXCLUSIVO CLIENTE (PARCEIRO) --- */}
                 <Route element={<RoleMiddleware allowedRoles={[UserRole.CLIENT]} />}>
                     <Route path="/client/portal" element={<ClientPortal />} />
                 </Route>
             </Route>
         </Route>
 
-        {/* Fallback de Erro */}
         <Route path="/404" element={<NotFoundPage />} />
         <Route path="*" element={<Navigate to="/404" replace />} />
       </Routes>
