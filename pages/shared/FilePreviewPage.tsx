@@ -4,7 +4,7 @@ import {
   ArrowLeft, Hand, Pencil, Highlighter, Square, Circle, 
   Eraser, Download, PlayCircle, Loader2, ChevronLeft, 
   ChevronRight, ZoomIn, ZoomOut, Plus, Save, Undo, Redo, 
-  FileCheck, FileOutput, ClipboardList
+  FileCheck, FileOutput, ClipboardList, Eye
 } from 'lucide-react';
 import { useAuth } from '../../context/authContext.tsx';
 import { useFilePreview } from '../../components/features/files/hooks/useFilePreview.ts';
@@ -27,15 +27,15 @@ export const FilePreviewPage: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   
+  const role = normalizeRole(user?.role);
   const isAuditMode = searchParams.get('mode') === 'audit';
+  const canAnnotate = role === UserRole.CLIENT;
+  const isQuality = role === UserRole.QUALITY || role === UserRole.ADMIN;
   
   const [activeTool, setActiveTool] = useState<DrawingTool>('hand');
   const [selectedColor, setSelectedColor] = useState('#ef4444');
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   const [numPages, setNumPages] = useState(0);
-
-  const [secondsElapsed, setSecondsElapsed] = useState(0);
-  const timerRef = useRef<any>(null);
 
   const [annotations, setAnnotations] = useState<DocumentAnnotations>({});
   const initialFileStub = useMemo(() => ({ id: fileId } as FileNode), [fileId]);
@@ -52,32 +52,25 @@ export const FilePreviewPage: React.FC = () => {
         setAnnotations(saved);
       } catch (e) { console.error(e); }
     }
-
-    if (isAuditMode) {
-        timerRef.current = setInterval(() => {
-            setSecondsElapsed(prev => prev + 1);
-        }, 1000);
-    }
-
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [currentFile?.id, isAuditMode]);
-
-  const formatTime = (totalSeconds: number) => {
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  }, [currentFile?.id]);
 
   const handleGoToWorkflow = () => {
     navigate(`/quality/inspection/${fileId}`);
   };
 
+  const handleReturn = () => {
+    if (isAuditMode || isQuality) {
+      navigate(`/quality/inspection/${fileId}`);
+    } else {
+      navigate(-1);
+    }
+  };
+
   const handleSaveAndReturn = async () => {
-    if (!currentFile) return;
+    if (!currentFile || !canAnnotate) return;
     try {
         await handleUpdateMetadata({ 
-            documentalDrawings: JSON.stringify(annotations),
-            auditDurationSeconds: (currentFile.metadata?.auditDurationSeconds || 0) + secondsElapsed
+            documentalDrawings: JSON.stringify(annotations)
         });
         showToast("Estação de Anotação sincronizada.", "success");
         navigate(`/quality/inspection/${fileId}`);
@@ -87,6 +80,7 @@ export const FilePreviewPage: React.FC = () => {
   };
 
   const handleUndo = () => {
+    if (!canAnnotate) return;
     setAnnotations(prev => {
         const pageItems = prev[pageNum] || [];
         if (pageItems.length === 0) return prev;
@@ -98,24 +92,28 @@ export const FilePreviewPage: React.FC = () => {
     <div className="h-screen w-screen bg-[#020617] flex flex-col overflow-hidden font-sans text-slate-200">
       <header className="h-16 flex items-center justify-between px-6 bg-[#081437]/90 backdrop-blur-xl border-b border-white/5 z-20 shrink-0">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate(-1)} className="p-2 text-slate-400 hover:text-white transition-all bg-white/5 rounded-xl border border-white/5">
+          <button 
+            onClick={handleReturn} 
+            className="p-2 text-slate-400 hover:text-white transition-all bg-white/5 rounded-xl border border-white/5"
+            title="Voltar"
+          >
             <ArrowLeft size={20} />
           </button>
           <div className="min-w-0">
             <h2 className="text-white text-xs font-black uppercase tracking-[3px] truncate max-w-md">
               {currentFile?.name || "Sincronizando Ativo..."}
             </h2>
-            {isAuditMode && (
-                <div className="flex items-center gap-2 mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                    <span className="text-[10px] font-black text-red-400 font-mono tracking-widest">{formatTime(secondsElapsed)} (ESTAÇÃO ATIVA)</span>
-                </div>
-            )}
+            <div className="flex items-center gap-2 mt-0.5">
+                <span className={`w-1.5 h-1.5 rounded-full ${isAuditMode ? 'bg-blue-500 animate-pulse' : 'bg-slate-500'}`} />
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  {isQuality ? 'Modo de Inspeção (Leitura)' : isAuditMode ? 'Sessão de Auditoria Ativa' : 'Visualização Técnica'}
+                </span>
+            </div>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
-            {isAuditMode ? (
+            {isAuditMode && canAnnotate ? (
                 <>
                     <button 
                         onClick={handleSaveAndReturn}
@@ -124,19 +122,23 @@ export const FilePreviewPage: React.FC = () => {
                     >
                         <Save size={14} /> Persistir Alterações
                     </button>
-                    <button className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-[2px] flex items-center gap-2 transition-all shadow-lg">
-                        <FileOutput size={14} /> Exportar
-                    </button>
                 </>
-            ) : (
+            ) : isQuality ? (
                 <button 
-                  onClick={handleDownload}
-                  disabled={!url}
-                  className="px-6 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10 flex items-center gap-2 transition-all"
+                  onClick={handleGoToWorkflow}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-[2px] flex items-center gap-2 transition-all shadow-lg"
                 >
-                  <Download size={14} /> Laudo Original
+                  <ClipboardList size={14} /> Retornar ao Fluxo
                 </button>
-            )}
+            ) : null}
+            
+            <button 
+              onClick={handleDownload}
+              disabled={!url}
+              className="px-6 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10 flex items-center gap-2 transition-all"
+            >
+              <Download size={14} /> {canAnnotate ? 'Laudo Original' : 'Exportar PDF'}
+            </button>
         </div>
       </header>
 
@@ -146,14 +148,19 @@ export const FilePreviewPage: React.FC = () => {
             url={url} pageNum={pageNum} zoom={zoom} 
             onPdfLoad={setNumPages} 
             isHandToolActive={activeTool === 'hand'}
-            renderOverlay={isAuditMode ? (w, h) => (
+            renderOverlay={(w, h) => (
               <DrawingCanvas 
-                tool={activeTool} color={selectedColor} 
+                tool={canAnnotate ? activeTool : 'hand'} 
+                color={selectedColor} 
                 width={w} height={h} 
                 pageAnnotations={annotations[pageNum] || []}
-                onAnnotationsChange={(newItems) => setAnnotations(prev => ({ ...prev, [pageNum]: newItems }))}
+                onAnnotationsChange={(newItems) => {
+                  if (canAnnotate) {
+                    setAnnotations(prev => ({ ...prev, [pageNum]: newItems }));
+                  }
+                }}
               />
-            ) : undefined}
+            )}
           />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-600 gap-4">
@@ -172,7 +179,7 @@ export const FilePreviewPage: React.FC = () => {
 
         <div className="flex items-center gap-1.5 px-1 border-r border-white/10">
           <ToolButton icon={Hand} active={activeTool === 'hand'} onClick={() => { setActiveTool('hand'); setShowToolsMenu(false); }} label="Mãozinha" />
-          {isAuditMode && (
+          {isAuditMode && canAnnotate && (
             <>
               <div className="relative">
                 <button onClick={() => setShowToolsMenu(!showToolsMenu)} className={`p-3 rounded-xl transition-all flex flex-col items-center gap-0.5 ${showToolsMenu ? 'bg-white text-slate-900' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
@@ -200,6 +207,12 @@ export const FilePreviewPage: React.FC = () => {
               <ToolButton icon={Undo} onClick={handleUndo} label="Desfazer" disabled={(annotations[pageNum] || []).length === 0} />
             </>
           )}
+          {isQuality && Object.keys(annotations).length > 0 && (
+             <div className="p-3 text-emerald-400 flex flex-col items-center gap-0.5">
+                <Eye size={18} />
+                <span className="text-[7px] font-black uppercase">NOTAS</span>
+             </div>
+          )}
         </div>
 
         <div className="flex items-center gap-1 border-r border-white/10 pr-2">
@@ -207,11 +220,13 @@ export const FilePreviewPage: React.FC = () => {
           <ToolButton icon={ZoomIn} onClick={() => setZoom(Math.min(3, zoom + 0.2))} label="Z+" />
         </div>
 
-        {!isAuditMode ? (
+        {canAnnotate && !isAuditMode && (
            <button onClick={handleGoToWorkflow} className="ml-2 px-8 py-3 bg-[#b23c0e] hover:bg-orange-600 text-white rounded-full font-black text-[10px] uppercase tracking-[3px] shadow-xl active:scale-95 flex items-center gap-3 transition-all">
               <PlayCircle size={18} /> INICIAR AUDITORIA
            </button>
-        ) : (
+        )}
+        
+        {isAuditMode && canAnnotate && (
            <button onClick={handleSaveAndReturn} className="ml-2 px-8 py-3 bg-white text-[#081437] hover:bg-blue-50 rounded-full font-black text-[10px] uppercase tracking-[3px] shadow-xl active:scale-95 flex items-center gap-3 border border-white/10 transition-all">
               <ClipboardList size={18} className="text-blue-600" /> RETOMAR FLUXO
            </button>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Check, Key, Activity, FileText, ArrowRight, ShieldCheck, 
   Truck, Gavel, UserCheck, Lock, Award, Mail, AlertTriangle, XCircle,
-  MessageSquare
+  MessageSquare, Eye, User
 } from 'lucide-react';
 import { SteelBatchMetadata, QualityStatus, UserRole, AuditSignature } from '../../../../types/index.ts';
 import { useToast } from '../../../../context/notificationContext.tsx';
@@ -37,7 +37,6 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
   const s6_c = !!sigs.step6_consolidation_client;
   const s6_q = !!sigs.step6_consolidation_quality;
   const s6 = s6_c && s6_q; 
-  const s7 = !!sigs.step7_certification;
 
   // Lógica de Arbitragem Técnica
   const isArbitrationNeeded = metadata?.documentalStatus === 'REJECTED' || metadata?.physicalStatus === 'REJECTED';
@@ -67,6 +66,7 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
   };
 
   const isRejected = metadata?.status === QualityStatus.REJECTED;
+  const clientRep = sigs.step5_partner_verdict || sigs.step6_consolidation_client;
 
   return (
     <div className="space-y-6 pb-24">
@@ -83,26 +83,36 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
           )}
         </StepCard>
 
-        {/* 2. CONFERÊNCIA DE DADOS - SOMENTE CLIENTE */}
+        {/* 2. CONFERÊNCIA DE DADOS - CLIENTE EXECUTA, QUALITY REVISA */}
         <StepCard step={2} title="2. Conferência de Dados" completed={s2} active={s1 && !s2} signature={sigs.step2_documental} icon={FileText}>
             <div className="space-y-4">
                 <p className="text-[10px] text-slate-500 font-medium">Análise técnica do laudo e aplicação de notas/anotações.</p>
+                
                 <button 
                     disabled={!s1}
                     onClick={() => navigate(`/preview/${fileId}?mode=audit`)} 
                     className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
-                        s1 ? 'bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100' : 'bg-slate-50 text-slate-400 border border-slate-100 opacity-50'
+                        s1 ? 'bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 shadow-sm' : 'bg-slate-50 text-slate-400 border border-slate-100 opacity-50'
                     }`}
                 >
-                    <FileText size={16} /> Estação de Anotação
+                    {isQuality && s2 ? <><Eye size={16} /> Inspecionar Notas do Parceiro</> : <><FileText size={16} /> Estação de Anotação</>}
                 </button>
+
                 {isClient && s1 && !s2 && (
                     <button 
                         onClick={() => handleAction('step2_documental', { documentalStatus: 'APPROVED' })}
-                        className="w-full py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg"
+                        className="w-full py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all"
                     >
-                        Assinar Validação de Dados
+                        Finalizar e Assinar Validação
                     </button>
+                )}
+
+                {isQuality && s2 && (
+                    <div className="p-3 bg-blue-50/50 rounded-xl border border-dashed border-blue-200">
+                        <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest text-center">
+                            Conferência Documental Concluída pelo Cliente
+                        </p>
+                    </div>
                 )}
             </div>
         </StepCard>
@@ -256,29 +266,59 @@ export const AuditWorkflow: React.FC<AuditWorkflowProps> = ({
             {s6 && (
                 <div className="animate-in fade-in zoom-in-95 duration-700">
                     {!isRejected ? (
-                        <div className="text-center p-8 bg-emerald-50 rounded-3xl border-2 border-dashed border-emerald-200 space-y-4">
-                            <ShieldCheck size={56} className="text-emerald-600 mx-auto animate-bounce" />
+                        <div className="flex items-center gap-5 p-6 bg-emerald-50 rounded-2xl border border-emerald-100">
+                            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                                <ShieldCheck size={28} className="text-emerald-600 animate-bounce" />
+                            </div>
                             <div>
-                                <h4 className="text-base font-black text-emerald-900 uppercase">Certificação Concluída</h4>
-                                <p className="text-xs text-emerald-700 font-medium mt-1">Agradecemos pela parceria. O lote está homologado para utilização.</p>
+                                <h4 className="text-sm font-black text-emerald-900 uppercase tracking-tight">Certificação Concluída</h4>
+                                <p className="text-[11px] text-emerald-700 font-medium">Lote homologado para utilização industrial.</p>
                             </div>
                         </div>
                     ) : (
-                        <div className="text-center p-8 bg-red-50 rounded-3xl border-2 border-dashed border-red-200 space-y-6">
-                            <AlertTriangle size={56} className="text-red-600 mx-auto" />
-                            <div>
-                                <h4 className="text-base font-black text-red-900 uppercase">Lote Rejeitado</h4>
-                                <p className="text-xs text-red-700 font-medium mt-1">Houve uma divergência técnica impeditiva no protocolo.</p>
-                            </div>
-                            <div className="pt-4 border-t border-red-100 flex flex-col items-center gap-3">
-                                <p className="text-[10px] font-black text-red-800 uppercase">Favor entrar em contato para conciliação:</p>
-                                <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow-sm border border-red-100">
-                                    <Mail size={14} className="text-red-500" />
-                                    <span className="text-xs font-mono font-bold text-red-900">
-                                        {isQuality ? sigs.step6_consolidation_client?.userEmail : sigs.step1_release?.userEmail}
-                                    </span>
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-4 p-5 bg-red-50 rounded-2xl border border-red-100">
+                                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+                                    <AlertTriangle size={24} className="text-red-600" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="text-xs font-black text-red-900 uppercase tracking-tight">Lote Rejeitado</h4>
+                                    <p className="text-[10px] text-red-700 font-medium leading-relaxed">
+                                        {isQuality 
+                                            ? "Protocolo encerrado com divergência. O parceiro entrará em contato para conciliação técnica." 
+                                            : "Houve uma divergência técnica impeditiva. Entre em contato com a Qualidade para conciliação."}
+                                    </p>
                                 </div>
                             </div>
+
+                            {isQuality && clientRep && (
+                                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                                    <header className="flex items-center gap-2 text-slate-400">
+                                        <User size={12} />
+                                        <span className="text-[9px] font-black uppercase tracking-widest">Representante do Cliente</span>
+                                    </header>
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div className="min-w-0">
+                                            <p className="text-[11px] font-black text-slate-800 uppercase truncate">{clientRep.userName}</p>
+                                            <p className="text-[10px] text-blue-600 font-bold truncate lowercase">{clientRep.userEmail}</p>
+                                        </div>
+                                        <a 
+                                            href={`mailto:${clientRep.userEmail}?subject=Conciliação Técnica: Lote ${metadata?.batchNumber}`}
+                                            className="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-blue-600 hover:border-blue-200 shadow-sm transition-all"
+                                            title="Enviar E-mail"
+                                        >
+                                            <Mail size={14} />
+                                        </a>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {!isQuality && (
+                                <div className="flex items-center justify-center gap-3 p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
+                                    <Mail size={12} className="text-red-400" />
+                                    <span className="text-[10px] font-mono font-bold text-slate-500">qualidade_adm@acosvital.com.br</span>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
