@@ -58,9 +58,9 @@ export const FilePreviewPage: React.FC = () => {
     }
   }, [currentFile?.id, currentFile?.metadata?.documentalDrawings]);
 
-  const handleGoToWorkflow = () => {
+  const handleGoToWorkflow = useCallback(() => {
     navigate(`/quality/inspection/${fileId}`);
-  };
+  }, [navigate, fileId]);
 
   const handleReturn = () => {
     if (isAuditMode || isQuality) {
@@ -71,14 +71,13 @@ export const FilePreviewPage: React.FC = () => {
   };
 
   // ÚNICO PONTO DE PERSISTÊNCIA: Botão "Persistir Alterações"
-  const handleSaveAndReturn = async () => {
+  const handlePersistChanges = async () => {
     if (!currentFile || !canAnnotate) return;
     try {
         await handleUpdateMetadata({ 
             documentalDrawings: JSON.stringify(annotations)
         });
         showToast("Estação de Anotação sincronizada com o Ledger.", "success");
-        navigate(`/quality/inspection/${fileId}`);
     } catch (e) {
         showToast("Falha técnica ao persistir no banco industrial.", "error");
     }
@@ -117,11 +116,17 @@ export const FilePreviewPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
             {isAuditMode && canAnnotate ? (
                 <>
                     <button 
-                        onClick={handleSaveAndReturn}
+                        onClick={handleGoToWorkflow}
+                        className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[10px] font-black uppercase tracking-[2px] flex items-center gap-2 transition-all border border-white/10"
+                    >
+                      <ClipboardList size={14} className="text-blue-400" /> Retomar Fluxo
+                    </button>
+                    <button 
+                        onClick={handlePersistChanges}
                         disabled={isSyncing || !url}
                         className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-[2px] flex items-center gap-2 transition-all shadow-lg"
                     >
@@ -232,7 +237,7 @@ export const FilePreviewPage: React.FC = () => {
         )}
         
         {isAuditMode && canAnnotate && (
-           <button onClick={handleSaveAndReturn} className="ml-2 px-8 py-3 bg-white text-[#081437] hover:bg-blue-50 rounded-full font-black text-[10px] uppercase tracking-[3px] shadow-xl active:scale-95 flex items-center gap-3 border border-white/10 transition-all">
+           <button onClick={handleGoToWorkflow} className="ml-2 px-8 py-3 bg-white text-[#081437] hover:bg-blue-50 rounded-full font-black text-[10px] uppercase tracking-[3px] shadow-xl active:scale-95 flex items-center gap-3 border border-white/10 transition-all">
               <ClipboardList size={18} className="text-blue-600" /> RETOMAR FLUXO
            </button>
         )}
