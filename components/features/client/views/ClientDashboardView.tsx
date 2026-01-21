@@ -24,9 +24,15 @@ export const ClientDashboardView: React.FC = () => {
     <div className="space-y-8 animate-in fade-in duration-700">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* KPI: Pendências de Auditoria */}
-        <div className={`p-6 rounded-[2.5rem] border shadow-xl flex flex-col justify-between transition-all relative overflow-hidden group ${
+        <div className={`p-6 rounded-[2.5rem] border shadow-xl flex flex-col justify-between transition-all relative overflow-visible group ${
           hasPending ? 'bg-orange-600 border-orange-500 text-white' : 'bg-white border-slate-200'
         }`}>
+          {/* Tooltip Ações Pendentes */}
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-4 py-2.5 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[1.5px] rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 scale-95 group-hover:scale-100 z-[100] whitespace-normal text-center w-52 shadow-2xl border border-white/10">
+              Certificados que requerem sua conferência física ou documental para homologação final do lote.
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900/90" />
+          </div>
+
           <div className="relative z-10">
             <div className="flex items-center gap-4 mb-4">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${
@@ -34,7 +40,10 @@ export const ClientDashboardView: React.FC = () => {
               }`}>
                 <ClipboardCheck size={24} />
               </div>
-              <h3 className={`text-[10px] font-black uppercase tracking-[2px] ${hasPending ? 'text-white/70' : 'text-slate-400'}`}>Ações Pendentes</h3>
+              <div className="flex flex-col">
+                <h3 className={`text-[10px] font-black uppercase tracking-[2px] ${hasPending ? 'text-white/70' : 'text-slate-400'}`}>Ações Pendentes</h3>
+                <Info size={10} className={hasPending ? 'text-white/30' : 'text-slate-300'} />
+              </div>
             </div>
             <div>
               <p className="text-5xl font-black tracking-tighter">{totalPending}</p>
@@ -46,12 +55,22 @@ export const ClientDashboardView: React.FC = () => {
           {hasPending && <FileWarning className="absolute -right-4 -bottom-4 opacity-10 rotate-12 pointer-events-none" size={120} />}
         </div>
 
-        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col justify-between group relative overflow-hidden">
+        {/* KPI: Ativos Validados */}
+        <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col justify-between group relative overflow-visible transition-all hover:border-emerald-200">
+          {/* Tooltip Ativos Validados */}
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-4 py-2.5 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[1.5px] rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 scale-95 group-hover:scale-100 z-[100] whitespace-normal text-center w-52 shadow-2xl border border-white/10">
+              Volume total de certificados que já passaram pelo ciclo completo de auditoria e conformidade técnica.
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900/90" />
+          </div>
+
           <div className="flex items-center gap-4 mb-4">
             <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center border border-emerald-100 shadow-inner group-hover:scale-110 transition-transform">
               <ShieldCheck size={24} />
             </div>
-            <h3 className="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Ativos Validados</h3>
+            <div className="flex flex-col">
+              <h3 className="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Ativos Validados</h3>
+              <Info size={10} className="text-slate-200" />
+            </div>
           </div>
           <div>
             <p className="text-4xl font-black text-slate-800 tracking-tighter">{stats?.subValue || 0}</p>
@@ -59,12 +78,22 @@ export const ClientDashboardView: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-[#132659] p-6 rounded-[2.5rem] text-white flex flex-col justify-between shadow-2xl relative overflow-hidden group">
+        {/* KPI: Última Auditoria */}
+        <div className="bg-[#132659] p-6 rounded-[2.5rem] text-white flex flex-col justify-between shadow-2xl relative overflow-visible group">
+          {/* Tooltip Última Auditoria */}
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-4 py-2.5 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[1.5px] rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 scale-95 group-hover:scale-100 z-[100] whitespace-normal text-center w-52 shadow-2xl border border-white/10">
+              Data e hora da sincronização mais recente entre seu terminal técnico e o sistema de auditoria Vital.
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900/90" />
+          </div>
+
           <div className="flex items-center gap-4 mb-4 relative z-10">
             <div className="w-12 h-12 bg-white/10 text-blue-400 rounded-2xl flex items-center justify-center border border-white/5 shadow-lg group-hover:rotate-12 transition-transform">
               <Clock size={24} />
             </div>
-            <h3 className="text-[10px] font-black uppercase tracking-[2px] text-slate-500">Última Auditoria</h3>
+            <div className="flex flex-col">
+              <h3 className="text-[10px] font-black uppercase tracking-[2px] text-slate-500">Última Auditoria</h3>
+              <Info size={10} className="text-white/10" />
+            </div>
           </div>
           <div className="relative z-10">
             <p className="text-2xl font-black tracking-tight">
